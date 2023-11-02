@@ -1,0 +1,146 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                     Int             @id @default(autoincrement())
+  firstName              String?
+  middleName             String?
+  lastName               String?
+  mobile                 String?         @unique
+  email                  String?         @unique
+  passwordHash           String
+  registeredAt           DateTime        @default(now())
+  lastLogin              DateTime?
+  bio                    String?
+  postCount              Int             @default(0)
+  followerCount          Int             @default(0)
+  followingCount         Int             @default(0)
+  sentFollowRequests     FollowRequest[] @relation("sentFollowRequests")
+  receivedFollowRequests FollowRequest[] @relation("receivedFollowRequests")
+  sentMessages           Message[]       @relation("sentMessages")
+  receivedMessages       Message[]       @relation("receivedMessages")
+  Post                   Post[]
+  Group                  Group[]
+  GroupMember            GroupMember[]
+  GroupMessage           GroupMessage[]
+  Like                   Like[]
+  Comment                Comment[]
+}
+
+model FollowRequest {
+  id        Int      @id @default(autoincrement())
+  source    User     @relation("sentFollowRequests", fields: [sourceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sourceId  Int
+  target    User     @relation("receivedFollowRequests", fields: [targetId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  targetId  Int
+  status    Int      @default(0) // 0: pending, 1: accepted, -1: rejected
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([sourceId, targetId])
+}
+
+model Message {
+  id        Int      @id @default(autoincrement())
+  source    User     @relation("sentMessages", fields: [sourceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sourceId  Int
+  target    User     @relation("receivedMessages", fields: [targetId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  targetId  Int
+  message   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sourceId])
+  @@index([targetId])
+}
+
+model Post {
+  id        Int       @id @default(autoincrement())
+  user      User      @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  userId    Int
+  message   String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  Like      Like[]
+  Comment   Comment[]
+
+  @@index([userId])
+}
+
+model Like {
+  id        Int      @id @default(autoincrement())
+  user      User     @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  userId    Int
+  post      Post     @relation(fields: [postId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  postId    Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, postId])
+  @@index([userId])
+  @@index([postId])
+}
+
+model Comment {
+  id        Int      @id @default(autoincrement())
+  content   String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  postId    Int
+  author    User     @relation(fields: [authorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  authorId  Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([postId])
+  @@index([authorId])
+}
+
+model Group {
+  id           Int            @id @default(autoincrement())
+  user         User           @relation(fields: [createdBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  createdBy    Int
+  subject      String
+  description  String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  GroupMember  GroupMember[]
+  GroupMessage GroupMessage[]
+
+  @@index([createdBy])
+}
+
+model GroupMember {
+  id       Int      @id @default(autoincrement())
+  group    Group    @relation(fields: [groupId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  groupId  Int
+  user     User     @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  userId   Int
+  joinedAt DateTime @default(now())
+
+  @@unique([groupId, userId])
+  @@index([groupId])
+  @@index([userId])
+}
+
+model GroupMessage {
+  id        Int      @id @default(autoincrement())
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  groupId   Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  userId    Int
+  message   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([groupId])
+  @@index([userId])
+}
