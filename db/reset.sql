@@ -1,124 +1,177 @@
--- Drop all foreign key constraints
-PRAGMA foreign_keys = OFF;
+-- Drop foreign keys from "Like"
+ALTER TABLE "Like" DROP CONSTRAINT IF EXISTS "Like_userId_fkey";
+ALTER TABLE "Like" DROP CONSTRAINT IF EXISTS "Like_postId_fkey";
 
+-- Drop foreign keys from "Comment"
+ALTER TABLE "Comment" DROP CONSTRAINT IF EXISTS "Comment_postId_fkey";
+ALTER TABLE "Comment" DROP CONSTRAINT IF EXISTS "Comment_authorId_fkey";
+
+-- Drop foreign keys from "GroupMember"
+ALTER TABLE "GroupMember" DROP CONSTRAINT IF EXISTS "GroupMember_userId_fkey";
+ALTER TABLE "GroupMember" DROP CONSTRAINT IF EXISTS "GroupMember_groupId_fkey";
+
+-- Drop foreign keys from "GroupMessage"
+ALTER TABLE "GroupMessage" DROP CONSTRAINT IF EXISTS "GroupMessage_userId_fkey";
+ALTER TABLE "GroupMessage" DROP CONSTRAINT IF EXISTS "GroupMessage_groupId_fkey";
+
+-- Drop foreign keys from "FollowRequest"
+ALTER TABLE "FollowRequest" DROP CONSTRAINT IF EXISTS "FollowRequest_targetId_fkey";
+ALTER TABLE "FollowRequest" DROP CONSTRAINT IF EXISTS "FollowRequest_sourceId_fkey";
+
+-- Drop foreign keys from "Post"
+ALTER TABLE "Post" DROP CONSTRAINT IF EXISTS "Post_userId_fkey";
+
+-- Drop foreign keys from "Message"
+ALTER TABLE "Message" DROP CONSTRAINT IF EXISTS "Message_targetId_fkey";
+ALTER TABLE "Message" DROP CONSTRAINT IF EXISTS "Message_sourceId_fkey";
+
+-- Drop foreign keys from "Group"
+ALTER TABLE "Group" DROP CONSTRAINT IF EXISTS "Group_createdBy_fkey";
+
+-- Drop the tables in reverse order
+
+-- Drop the table "GroupMessage"
 DROP TABLE IF EXISTS "GroupMessage";
+
+-- Drop the table "GroupMember"
 DROP TABLE IF EXISTS "GroupMember";
+
+-- Drop the table "Group"
 DROP TABLE IF EXISTS "Group";
+
+-- Drop the table "Comment"
 DROP TABLE IF EXISTS "Comment";
+
+-- Drop the table "Like"
 DROP TABLE IF EXISTS "Like";
+
+-- Drop the table "Post"
 DROP TABLE IF EXISTS "Post";
+
+-- Drop the table "Message"
 DROP TABLE IF EXISTS "Message";
+
+-- Drop the table "FollowRequest"
 DROP TABLE IF EXISTS "FollowRequest";
+
+-- Drop the table "User"
 DROP TABLE IF EXISTS "User";
 
--- Reset foreign key constraints
-PRAGMA foreign_keys = ON;
+-- Drop the ENUM type "Status"
+DROP TYPE IF EXISTS "Status";
+
+-- CreateEnum
+CREATE TYPE "Status" AS ENUM ('PENDING', 'ACCEPTED', 'REJECTED');
 
 -- CreateTable
 CREATE TABLE "User" (
-    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    "firstName" TEXT,
-    "middleName" TEXT,
-    "lastName" TEXT,
-    "mobile" TEXT,
-    "email" TEXT,
-    "passwordHash" TEXT NOT NULL,
-    "registeredAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "lastLogin" DATETIME,
+    "id" SERIAL NOT NULL,
+    "firstName" VARCHAR(50),
+    "middleName" VARCHAR(50),
+    "lastName" VARCHAR(50),
+    "mobile" VARCHAR(10),
+    "email" VARCHAR(50),
+    "passwordHash" VARCHAR(32) NOT NULL,
+    "registeredAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "lastLogin" TIMESTAMP(3),
     "bio" TEXT,
     "postCount" INTEGER NOT NULL DEFAULT 0,
     "followerCount" INTEGER NOT NULL DEFAULT 0,
-    "followingCount" INTEGER NOT NULL DEFAULT 0
+    "followingCount" INTEGER NOT NULL DEFAULT 0,
+
+    CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "FollowRequest" (
-    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "id" SERIAL NOT NULL,
     "sourceId" INTEGER NOT NULL,
     "targetId" INTEGER NOT NULL,
-    "status" INTEGER NOT NULL DEFAULT 0,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "FollowRequest_sourceId_fkey" FOREIGN KEY ("sourceId") REFERENCES "User" ("id") ON DELETE NO ACTION ON UPDATE NO ACTION,
-    CONSTRAINT "FollowRequest_targetId_fkey" FOREIGN KEY ("targetId") REFERENCES "User" ("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+    "status" "Status" NOT NULL DEFAULT 'PENDING',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "FollowRequest_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "Message" (
-    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "id" SERIAL NOT NULL,
     "sourceId" INTEGER NOT NULL,
     "targetId" INTEGER NOT NULL,
     "message" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "Message_sourceId_fkey" FOREIGN KEY ("sourceId") REFERENCES "User" ("id") ON DELETE NO ACTION ON UPDATE NO ACTION,
-    CONSTRAINT "Message_targetId_fkey" FOREIGN KEY ("targetId") REFERENCES "User" ("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Message_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "Post" (
-    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "id" SERIAL NOT NULL,
     "userId" INTEGER NOT NULL,
     "message" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "Post_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Post_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "Like" (
-    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "id" SERIAL NOT NULL,
     "userId" INTEGER NOT NULL,
     "postId" INTEGER NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "Like_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE NO ACTION ON UPDATE NO ACTION,
-    CONSTRAINT "Like_postId_fkey" FOREIGN KEY ("postId") REFERENCES "Post" ("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Like_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "Comment" (
-    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "id" SERIAL NOT NULL,
     "content" TEXT NOT NULL,
     "postId" INTEGER NOT NULL,
     "authorId" INTEGER NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "Comment_postId_fkey" FOREIGN KEY ("postId") REFERENCES "Post" ("id") ON DELETE NO ACTION ON UPDATE NO ACTION,
-    CONSTRAINT "Comment_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "User" ("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Comment_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "Group" (
-    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "id" SERIAL NOT NULL,
     "createdBy" INTEGER NOT NULL,
-    "subject" TEXT NOT NULL,
+    "subject" VARCHAR(50) NOT NULL,
     "description" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "Group_createdBy_fkey" FOREIGN KEY ("createdBy") REFERENCES "User" ("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Group_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "GroupMember" (
-    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "id" SERIAL NOT NULL,
     "groupId" INTEGER NOT NULL,
     "userId" INTEGER NOT NULL,
-    "joinedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "GroupMember_groupId_fkey" FOREIGN KEY ("groupId") REFERENCES "Group" ("id") ON DELETE NO ACTION ON UPDATE NO ACTION,
-    CONSTRAINT "GroupMember_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+    "joinedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "GroupMember_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "GroupMessage" (
-    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "id" SERIAL NOT NULL,
     "groupId" INTEGER NOT NULL,
     "userId" INTEGER NOT NULL,
     "message" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "GroupMessage_groupId_fkey" FOREIGN KEY ("groupId") REFERENCES "Group" ("id") ON DELETE NO ACTION ON UPDATE NO ACTION,
-    CONSTRAINT "GroupMessage_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "GroupMessage_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -171,3 +224,45 @@ CREATE INDEX "GroupMessage_groupId_idx" ON "GroupMessage"("groupId");
 
 -- CreateIndex
 CREATE INDEX "GroupMessage_userId_idx" ON "GroupMessage"("userId");
+
+-- AddForeignKey
+ALTER TABLE "FollowRequest" ADD CONSTRAINT "FollowRequest_sourceId_fkey" FOREIGN KEY ("sourceId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "FollowRequest" ADD CONSTRAINT "FollowRequest_targetId_fkey" FOREIGN KEY ("targetId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Message" ADD CONSTRAINT "Message_sourceId_fkey" FOREIGN KEY ("sourceId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Message" ADD CONSTRAINT "Message_targetId_fkey" FOREIGN KEY ("targetId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Post" ADD CONSTRAINT "Post_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Like" ADD CONSTRAINT "Like_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Like" ADD CONSTRAINT "Like_postId_fkey" FOREIGN KEY ("postId") REFERENCES "Post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Comment" ADD CONSTRAINT "Comment_postId_fkey" FOREIGN KEY ("postId") REFERENCES "Post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Comment" ADD CONSTRAINT "Comment_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Group" ADD CONSTRAINT "Group_createdBy_fkey" FOREIGN KEY ("createdBy") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "GroupMember" ADD CONSTRAINT "GroupMember_groupId_fkey" FOREIGN KEY ("groupId") REFERENCES "Group"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "GroupMember" ADD CONSTRAINT "GroupMember_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "GroupMessage" ADD CONSTRAINT "GroupMessage_groupId_fkey" FOREIGN KEY ("groupId") REFERENCES "Group"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "GroupMessage" ADD CONSTRAINT "GroupMessage_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
