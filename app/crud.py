@@ -24,3 +24,8 @@ def reset_db():
 
 def load_procedures():
     execute_sql_script("procedures.sql")
+
+if __name__ == "__main__":
+    # create_tables()
+    load_procedures()
+    # reset_db()
