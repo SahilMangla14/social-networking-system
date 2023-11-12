@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,143 +7,143 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id                     Int             @id @default(autoincrement())
-  firstName              String?         @db.VarChar(50)
-  middleName             String?         @db.VarChar(50)
-  lastName               String?         @db.VarChar(50)
-  mobile                 String?         @unique @db.VarChar(10)
-  email                  String?         @unique @db.VarChar(50)
-  passwordHash           String          @db.VarChar(32)
-  registeredAt           DateTime        @default(now())
-  lastLogin              DateTime?
-  bio                    String?
-  postCount              Int             @default(0)
-  followerCount          Int             @default(0)
-  followingCount         Int             @default(0)
-  sentFollowRequests     FollowRequest[] @relation("sentFollowRequests")
-  receivedFollowRequests FollowRequest[] @relation("receivedFollowRequests")
-  sentMessages           Message[]       @relation("sentMessages")
-  receivedMessages       Message[]       @relation("receivedMessages")
-  Post                   Post[]
-  Group                  Group[]
-  GroupMember            GroupMember[]
-  GroupMessage           GroupMessage[]
-  Like                   Like[]
-  Comment                Comment[]
-}
-
-enum Status {
+enum status_enum {
   PENDING
   ACCEPTED
   REJECTED
 }
 
-model FollowRequest {
-  id        Int      @id @default(autoincrement())
-  source    User     @relation("sentFollowRequests", fields: [sourceId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  sourceId  Int
-  target    User     @relation("receivedFollowRequests", fields: [targetId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  targetId  Int
-  status    Status   @default(PENDING)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([sourceId, targetId])
+model user_account {
+  id                                                         Int              @id @default(autoincrement())
+  first_name                                                 String?
+  middle_name                                                String?
+  last_name                                                  String?
+  mobile_number                                              String           @unique @db.VarChar(10)
+  email                                                      String           @unique
+  password_hash                                              String
+  registered_at                                              DateTime         @default(now()) @db.Timestamp(6)
+  last_login                                                 DateTime?        @db.Timestamp(6)
+  bio                                                        String?
+  post_count                                                 Int              @default(0)
+  follower_count                                             Int              @default(0)
+  following_count                                            Int              @default(0)
+  follow_request_follow_request_source_user_idTouser_account follow_request[] @relation("follow_request_source_user_idTouser_account")
+  follow_request_follow_request_target_user_idTouser_account follow_request[] @relation("follow_request_target_user_idTouser_account")
+  group_member                                               group_member[]
+  group_message                                              group_message[]
+  post                                                       post[]
+  post_comment                                               post_comment[]
+  post_like                                                  post_like[]
+  user_group                                                 user_group[]
+  user_message_user_message_source_user_idTouser_account     user_message[]   @relation("user_message_source_user_idTouser_account")
+  user_message_user_message_target_user_idTouser_account     user_message[]   @relation("user_message_target_user_idTouser_account")
 }
 
-model Message {
-  id        Int      @id @default(autoincrement())
-  source    User     @relation("sentMessages", fields: [sourceId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  sourceId  Int
-  target    User     @relation("receivedMessages", fields: [targetId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  targetId  Int
-  message   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model follow_request {
+  id             Int          @id @default(autoincrement())
+  source_user_id Int
+  target_user_id Int
+  request_status status_enum  @default(PENDING)
+  created_at     DateTime     @default(now()) @db.Timestamp(6)
+  updated_at     DateTime     @db.Timestamp(6)
+  source         user_account @relation("follow_request_source_user_idTouser_account", fields: [source_user_id], references: [id], onDelete: Cascade)
+  target         user_account @relation("follow_request_target_user_idTouser_account", fields: [target_user_id], references: [id], onDelete: Cascade)
 
-  @@index([sourceId])
-  @@index([targetId])
+  @@unique([source_user_id, target_user_id])
 }
 
-model Post {
-  id        Int       @id @default(autoincrement())
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  userId    Int
-  message   String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  Like      Like[]
-  Comment   Comment[]
+model user_message {
+  id             Int          @id @default(autoincrement())
+  source_user_id Int
+  target_user_id Int
+  message_text   String?
+  created_at     DateTime     @default(now()) @db.Timestamp(6)
+  updated_at     DateTime     @db.Timestamp(6)
+  source         user_account @relation("user_message_source_user_idTouser_account", fields: [source_user_id], references: [id], onDelete: Cascade)
+  target         user_account @relation("user_message_target_user_idTouser_account", fields: [target_user_id], references: [id], onDelete: Cascade)
 
-  @@index([userId])
+  @@index([source_user_id])
+  @@index([target_user_id])
 }
 
-model Like {
-  id        Int      @id @default(autoincrement())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  userId    Int
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  postId    Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([userId, postId])
-  @@index([userId])
-  @@index([postId])
-}
-
-model Comment {
-  id        Int      @id @default(autoincrement())
-  content   String
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  postId    Int
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  authorId  Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([postId])
-  @@index([authorId])
-}
-
-model Group {
+model post {
   id           Int            @id @default(autoincrement())
-  user         User           @relation(fields: [createdBy], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  createdBy    Int
-  subject      String         @db.VarChar(50)
-  description  String?
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  GroupMember  GroupMember[]
-  GroupMessage GroupMessage[]
+  user_id      Int
+  message_text String?
+  created_at   DateTime       @default(now()) @db.Timestamp(6)
+  updated_at   DateTime       @db.Timestamp(6)
+  user_account user_account   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  post_comment post_comment[]
+  post_like    post_like[]
 
-  @@index([createdBy])
+  @@index([user_id])
 }
 
-model GroupMember {
-  id       Int      @id @default(autoincrement())
-  group    Group    @relation(fields: [groupId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  groupId  Int
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  userId   Int
-  joinedAt DateTime @default(now())
+model post_like {
+  id           Int          @id @default(autoincrement())
+  user_id      Int
+  post_id      Int
+  created_at   DateTime     @default(now()) @db.Timestamp(6)
+  updated_at   DateTime     @db.Timestamp(6)
+  post         post         @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  user_account user_account @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
-  @@unique([groupId, userId])
-  @@index([groupId])
-  @@index([userId])
+  @@unique([user_id, post_id])
+  @@index([post_id])
+  @@index([user_id])
 }
 
-model GroupMessage {
-  id        Int      @id @default(autoincrement())
-  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  groupId   Int
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  userId    Int
-  message   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model post_comment {
+  id             Int          @id @default(autoincrement())
+  content        String
+  post_id        Int
+  author_user_id Int
+  created_at     DateTime     @default(now()) @db.Timestamp(6)
+  updated_at     DateTime     @db.Timestamp(6)
+  user_account   user_account @relation(fields: [author_user_id], references: [id], onDelete: Cascade)
+  post           post         @relation(fields: [post_id], references: [id], onDelete: Cascade)
 
-  @@index([groupId])
-  @@index([userId])
+  @@index([author_user_id])
+  @@index([post_id])
+}
+
+model user_group {
+  id                 Int             @id @default(autoincrement())
+  created_by_user_id Int
+  title              String          @db.VarChar(50)
+  summary            String?
+  created_at         DateTime        @default(now()) @db.Timestamp(6)
+  updated_at         DateTime        @db.Timestamp(6)
+  group_member       group_member[]
+  group_message      group_message[]
+  user_account       user_account    @relation(fields: [created_by_user_id], references: [id], onDelete: Cascade)
+
+  @@index([created_by_user_id])
+}
+
+model group_member {
+  id           Int          @id @default(autoincrement())
+  group_id     Int
+  user_id      Int
+  joined_at    DateTime     @default(now()) @db.Timestamp(6)
+  user_group   user_group   @relation(fields: [group_id], references: [id], onDelete: Cascade)
+  user_account user_account @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([group_id, user_id])
+  @@index([group_id])
+  @@index([user_id])
+}
+
+model group_message {
+  id           Int          @id @default(autoincrement())
+  group_id     Int
+  user_id      Int
+  message_text String?
+  created_at   DateTime     @default(now()) @db.Timestamp(6)
+  updated_at   DateTime     @db.Timestamp(6)
+  user_group   user_group   @relation(fields: [group_id], references: [id], onDelete: Cascade)
+  user_account user_account @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([group_id])
+  @@index([user_id])
 }
