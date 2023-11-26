@@ -111,3 +111,5 @@ DROP FUNCTION IF EXISTS view_user_posts;
 DROP FUNCTION IF EXISTS view_followers;
 
 DROP FUNCTION IF EXISTS view_posts_of_other_user;
+
+DROP FUNCTION IF EXISTS who_to_follow;

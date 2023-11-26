@@ -756,3 +756,43 @@ ORDER BY
 END;
 $$
 LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION who_to_follow (p_user_id int)
+    RETURNS TABLE (
+        user_id int,
+        first_name text,
+        last_name text,
+        mobile_number varchar(10),
+        email text,
+        bio text
+    )
+    AS $$
+BEGIN
+    -- Check if the user exists
+    IF NOT EXISTS (
+        SELECT
+            1
+        FROM
+            user_account
+        WHERE
+            id = p_user_id) THEN
+    RAISE EXCEPTION 'User does not exist.';
+END IF;
+    RETURN QUERY SELECT DISTINCT
+        u.id AS user_id,
+        u.first_name,
+        u.last_name,
+        u.mobile_number,
+        u.email,
+        u.bio
+    FROM
+        post p
+        JOIN post_comment pc ON p.id = pc.post_id
+        JOIN user_account u ON pc.author_user_id = u.id
+    WHERE
+        p.user_id = p_user_id
+        AND u.id != p_user_id;
+    RETURN;
+END;
+$$
+LANGUAGE plpgsql;

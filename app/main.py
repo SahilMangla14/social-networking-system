@@ -431,3 +431,30 @@ def view_posts_of_other_user(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error calling stored procedure view_posts_of_other_user: {e}",
         )
+
+
+@app.get("/who-to-follow", response_model=list, status_code=status.HTTP_200_OK)
+def who_to_follow(user_id: int = Depends(get_current_user_id)):
+    try:
+        with get_db() as db:
+            db.callproc("who_to_follow", [user_id])
+            results = db.fetchall()
+
+            response_data = []
+            for result in results:
+                user_data = {
+                    "user_id": result[0],
+                    "first_name": result[1],
+                    "last_name": result[2],
+                    "mobile_number": result[3],
+                    "email": result[4],
+                    "bio": result[5],
+                }
+                response_data.append(user_data)
+
+            return response_data
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error calling stored procedure who_to_follow: {e}",
+        )
