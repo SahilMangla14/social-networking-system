@@ -25,6 +25,34 @@ END;
 $$
 LANGUAGE plpgsql;
 
+
+CREATE OR REPLACE FUNCTION delete_user (p_email text)
+    RETURNS int
+    AS $$
+DECLARE
+    v_user_id int;
+BEGIN
+    -- Check if email exists
+    IF NOT EXISTS (
+        SELECT
+            1
+        FROM
+            user_account
+        WHERE
+            email = p_email) THEN
+    RAISE EXCEPTION 'User with the provided email does not exist.';
+END IF;
+    -- Delete the user from the user_account table
+    DELETE FROM user_account
+    WHERE email = p_email
+    RETURNING id INTO v_user_id;
+    
+    RETURN v_user_id;
+END;
+$$
+LANGUAGE plpgsql;
+
+
 CREATE OR REPLACE FUNCTION make_follow_request (p_source_user_id integer, p_target_user_id integer)
     RETURNS int
     AS $$
@@ -204,6 +232,46 @@ END;
 $$
 LANGUAGE plpgsql;
 
+
+CREATE OR REPLACE FUNCTION delete_post (p_post_id integer)
+    RETURNS TABLE (
+        post_id int
+    )
+    AS $$
+DECLARE
+    deleted_post_id int;
+BEGIN
+    -- Check if the post exists
+    IF NOT EXISTS (
+        SELECT
+            1
+        FROM
+            post
+        WHERE
+            id = p_post_id) THEN
+    RAISE EXCEPTION 'The post which you are trying to delete does not exist.';
+END IF;
+    -- Delete the post
+    DELETE FROM post
+    WHERE id = p_post_id
+    RETURNING
+        id INTO deleted_post_id;
+    -- Update user's post count
+    UPDATE
+        user_account
+    SET
+        post_count = post_count - 1
+    WHERE
+        id = post_id;
+    -- Perform any additional actions or notifications if needed
+    RETURN QUERY
+    SELECT
+        deleted_post_id;
+END;
+$$
+LANGUAGE plpgsql;
+
+
 CREATE OR REPLACE FUNCTION like_post (p_user_id integer, p_post_id integer)
     RETURNS TABLE (
         like_id int
@@ -260,6 +328,63 @@ END;
 $$
 LANGUAGE plpgsql;
 
+
+CREATE OR REPLACE FUNCTION unlike_post (p_like_id integer)
+    RETURNS TABLE (
+        like_id int
+    )
+    AS $$
+DECLARE
+    deleted_like_id int;
+BEGIN
+    -- Check if the user exists
+    IF NOT EXISTS (
+        SELECT
+            1
+        FROM
+            user_account
+        WHERE
+            id = p_user_id) THEN
+    RAISE EXCEPTION 'User does not exist.';
+END IF;
+    -- Check if the post exists
+    IF NOT EXISTS (
+        SELECT
+            1
+        FROM
+            post
+        WHERE
+            id = p_post_id) THEN
+    RAISE EXCEPTION 'Post does not exist.';
+END IF;
+    -- Check if the user has not yet liked the post
+    IF NOT EXISTS (
+        SELECT
+            1
+        FROM
+            post_like
+        WHERE
+            user_id = p_user_id
+            AND post_id = p_post_id) THEN
+    RAISE EXCEPTION 'User has not liked the post.';
+END IF;
+    -- Insert new post like
+    DELETE FROM post_like
+    WHERE id = p_like_id
+    RETURNING id into deleted_like_id;
+    -- Update post's like count
+    -- UPDATE post
+    -- SET like_count = like_count + 1
+    -- WHERE id = p_post_id;
+    -- Perform any additional actions or notifications if needed
+    RETURN QUERY
+    SELECT
+        deleted_like_id;
+END;
+$$
+LANGUAGE plpgsql;
+
+
 CREATE OR REPLACE FUNCTION comment_on_post (p_user_id integer, p_post_id integer, p_content text)
     RETURNS TABLE (
         comment_id int
@@ -304,6 +429,43 @@ END IF;
 END;
 $$
 LANGUAGE plpgsql;
+
+
+CREATE OR REPLACE FUNCTION delete_comment_on_post (p_comment_id integer)
+    RETURNS TABLE (
+        comment_id int
+    )
+    AS $$
+DECLARE
+    deleted_comment_id int;
+BEGIN
+    -- Check if the comment exists
+    IF NOT EXISTS (
+        SELECT
+            1
+        FROM
+            post_comment
+        WHERE
+            id = p_comment_id) THEN
+    RAISE EXCEPTION 'The comment you are trying to delete does not exist.';
+END IF;
+    -- Delete the comment
+    DELETE FROM post_comment
+    WHERE id = p_comment_id
+    RETURNING
+        id INTO delete_comment_id;
+    -- Update post's comment count
+    -- UPDATE post
+    -- SET comment_count = comment_count + 1
+    -- WHERE id = p_post_id;
+    -- Perform any additional actions or notifications if needed
+    RETURN QUERY
+    SELECT
+        delete_comment_id;
+END;
+$$
+LANGUAGE plpgsql;
+
 
 CREATE OR REPLACE FUNCTION message_friend (p_source_user_id integer, p_target_user_id integer, p_message_text text)
     RETURNS TABLE (
