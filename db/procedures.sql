@@ -796,3 +796,73 @@ END IF;
 END;
 $$
 LANGUAGE plpgsql;
+
+
+DROP FUNCTION  view_post_feed (p_user_id integer);
+CREATE OR REPLACE FUNCTION view_post_feed (p_user_id integer)
+    RETURNS TABLE (
+        feed_post_id int,
+        creator_id int,
+        message_text text,
+        created_at timestamp,
+        like_count bigint,
+        comment_count bigint
+    )
+    AS $$
+BEGIN
+    -- Check if the user exists
+    IF NOT EXISTS (
+        SELECT
+            1
+        FROM
+            user_account
+        WHERE
+            id = p_user_id) THEN
+    RAISE EXCEPTION 'User does not exist.';
+END IF;
+    -- Retrieve user posts along with like and comment counts
+    RETURN QUERY
+    SELECT
+        p.id AS feed_post_id,
+        p.user_id as creator_id,
+        p.message_text,
+        p.created_at::timestamp, -- Ensure the correct casting to timestamp
+        COALESCE(plike.like_count, 0)::bigint AS like_count,
+        COALESCE(pcomment.comment_count, 0)::bigint AS comment_count
+    FROM
+        post p
+    LEFT JOIN (
+        SELECT
+            post_id,
+            COUNT(*) AS like_count
+        FROM
+            post_like
+        GROUP BY
+            post_id) plike ON p.id = plike.post_id
+    LEFT JOIN (
+        SELECT
+            post_id,
+            COUNT(*) AS comment_count
+        FROM
+            post_comment
+        GROUP BY
+            post_id) pcomment ON p.id = pcomment.post_id
+WHERE
+    p.user_id IN 
+                (
+                    SELECT source_user_id
+                    FROM follow_request
+                    WHERE p_user_id = target_user_id and request_status='ACCEPTED'
+                )
+                OR 
+    p.user_id IN 
+                (
+                    SELECT target_user_id
+                    FROM follow_request
+                    WHERE p_user_id = source_user_id 
+                )
+ORDER BY
+    p.created_at DESC;
+END;
+$$
+LANGUAGE plpgsql;
