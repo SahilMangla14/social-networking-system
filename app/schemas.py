@@ -7,5 +7,5 @@ class UserAccount(BaseModel):
     last_name: str = None
     mobile_number: str
     email: str
-    password_hash: str = None
+    password: str = None
     bio: str = None
