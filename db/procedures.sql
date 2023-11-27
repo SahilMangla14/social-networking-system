@@ -26,8 +26,44 @@ $$
 LANGUAGE plpgsql;
 
 
+CREATE OR REPLACE FUNCTION update_user (p_user_id integer, p_first_name text, p_middle_name text, p_last_name text, p_mobile_number varchar(10), p_email text, p_password_hash text, p_bio text)
+    RETURNS int
+    AS $$
+DECLARE
+    v_user_id int;
+BEGIN
+    -- Check if mobile_number and email are unique
+    IF EXISTS (
+        SELECT
+            1
+        FROM
+            user_account
+        WHERE
+            mobile_number = p_mobile_number
+            OR email = p_email) THEN
+    RAISE EXCEPTION 'User with the provided mobile number or email already exists.';
+END IF;
+    -- Update user with optional attributes
+    UPDATE user_account
+    SET 
+        first_name = COALESCE(p_first_name, first_name),
+        middle_name = COALESCE(p_middle_name, middle_name),
+        last_name = COALESCE(p_last_name, last_name),
+        mobile_number = COALESCE(p_mobile_number, mobile_number),
+        email = COALESCE(p_email, email),
+        password_hash = COALESCE(p_password_hash, password_hash),
+        bio = COALESCE(p_bio, bio)
+    WHERE id = p_user_id
+    RETURNING id INTO v_user_id;
+
+    RETURN v_user_id;
+END;
+$$
+LANGUAGE plpgsql;
+
+
 CREATE OR REPLACE FUNCTION delete_user (p_email text)
-    RETURNS v_user_id int
+    RETURNS int
     AS $$
 DECLARE
     v_user_id int;
@@ -100,6 +136,7 @@ END;
 $$
 LANGUAGE plpgsql;
 
+
 CREATE OR REPLACE FUNCTION view_pending_follow_requests (p_user_id integer)
     RETURNS TABLE (
         request_id int,
@@ -135,6 +172,7 @@ END IF;
 END;
 $$
 LANGUAGE plpgsql;
+
 
 CREATE OR REPLACE FUNCTION accept_follow_requests (p_user_id integer, p_request_ids integer[])
     RETURNS TABLE (
@@ -194,6 +232,66 @@ END;
 $$
 LANGUAGE plpgsql;
 
+
+CREATE OR REPLACE FUNCTION reject_follow_requests (p_user_id integer, p_request_ids integer[])
+    RETURNS TABLE (
+        request_id int,
+        status_text text
+    )
+    AS $$
+DECLARE
+    v_request_status status_enum;
+BEGIN
+    -- Check if the user exists
+    IF NOT EXISTS (
+        SELECT
+            1
+        FROM
+            user_account
+        WHERE
+            id = p_user_id) THEN
+    RETURN QUERY
+VALUES (NULL,
+    'User does not exist.');
+    RETURN;
+END IF;
+    -- Loop through the array of request IDs
+    FOR request_id IN
+    SELECT
+        unnest(p_request_ids) AS id LOOP
+            -- Check if the follow request exists for the given user
+            SELECT
+                request_status INTO v_request_status
+            FROM
+                follow_request
+            WHERE
+                id = request_id
+                AND target_user_id = p_user_id
+                AND request_status = 'PENDING';
+            IF NOT FOUND THEN
+                RETURN QUERY
+            VALUES (request_id,
+                'Follow request does not exist or is not pending for the user.');
+                CONTINUE;
+            END IF;
+            -- Update the status of the follow request to 'ACCEPTED'
+            UPDATE
+                follow_request
+            SET
+                request_status = 'REJECTED',
+                updated_at = CURRENT_TIMESTAMP
+            WHERE
+                id = request_id;
+            -- Perform any additional actions or notifications if needed
+            RETURN QUERY
+        VALUES (request_id,
+            'Follow request rejected.');
+        END LOOP;
+END;
+$$
+LANGUAGE plpgsql;
+
+
 CREATE OR REPLACE FUNCTION create_post (p_user_id integer, p_message_text text)
     RETURNS TABLE (
         post_id int
@@ -233,14 +331,24 @@ $$
 LANGUAGE plpgsql;
 
 
-CREATE OR REPLACE FUNCTION delete_post (p_post_id integer, p_user_id integer)
+CREATE OR REPLACE FUNCTION update_post (p_post_id integer, p_user_id integer, p_message_text text)
     RETURNS TABLE (
         post_id int
     )
     AS $$
 DECLARE
-    deleted_post_id int;
+    updated_post_id int;
 BEGIN
+    -- Check if the user exists
+    IF NOT EXISTS (
+        SELECT
+            1
+        FROM
+            user_account
+        WHERE
+            id = p_user_id) THEN
+    RAISE EXCEPTION 'User does not exist.';
+END IF;
     -- Check if the post exists
     IF NOT EXISTS (
         SELECT
@@ -249,7 +357,50 @@ BEGIN
             post
         WHERE
             id = p_post_id AND user_id = p_user_id) THEN
-    RAISE EXCEPTION 'The post which you are trying to delete does not exist.';
+    RAISE EXCEPTION 'Post does not exist.';
+END IF;
+    -- Update the post
+    UPDATE post
+    SET message_text = p_message_text, updated_at = CURRENT_TIMESTAMP
+    WHERE id = p_post_id AND user_id = p_user_id
+    RETURNING
+        id INTO updated_post_id;
+    -- Perform any additional actions or notifications if needed
+    RETURN QUERY
+    SELECT
+        updated_post_id;
+END;
+$$
+LANGUAGE plpgsql;
+
+
+CREATE OR REPLACE FUNCTION delete_post (p_post_id integer, p_user_id integer)
+    RETURNS TABLE (
+        post_id int
+    )
+    AS $$
+DECLARE
+    deleted_post_id int;
+BEGIN
+    -- Check if the user exists
+    IF NOT EXISTS (
+        SELECT
+            1
+        FROM
+            user_account
+        WHERE
+            id = p_user_id) THEN
+    RAISE EXCEPTION 'User does not exist.';
+END IF;
+    -- Check if the post exists
+    IF NOT EXISTS (
+        SELECT
+            1
+        FROM
+            post
+        WHERE
+            id = p_post_id AND user_id = p_user_id) THEN
+    RAISE EXCEPTION 'Post does not exist.';
 END IF;
     -- Delete the post
     DELETE FROM post
@@ -431,6 +582,59 @@ $$
 LANGUAGE plpgsql;
 
 
+CREATE OR REPLACE FUNCTION update_comment_on_post (p_comment_id integer, p_content text, p_post_id integer, p_user_id integer)
+    RETURNS TABLE (
+        comment_id int
+    )
+    AS $$
+DECLARE
+    updated_comment_id int;
+BEGIN
+    -- Check if the user exists
+    IF NOT EXISTS (
+        SELECT
+            1
+        FROM
+            user_account
+        WHERE
+            id = p_user_id) THEN
+    RAISE EXCEPTION 'User does not exist.';
+END IF;
+    -- Check if the post exists
+    IF NOT EXISTS (
+        SELECT
+            1
+        FROM
+            post
+        WHERE
+            id = p_post_id) THEN
+    RAISE EXCEPTION 'Post does not exist.';
+END IF;
+    -- Check if the comment exists
+    IF NOT EXISTS (
+        SELECT
+            1
+        FROM
+            post_comment
+        WHERE
+            id = p_comment_id) THEN
+    RAISE EXCEPTION 'Comment does not exist.';
+END IF;
+    -- Update the comment
+    UPDATE post_comment
+    SET content = p_content, updated_at = CURRENT_TIMESTAMP
+    WHERE post_id = p_post_id AND author_user_id = p_user_id
+    RETURNING
+        id INTO updated_comment_id;
+    -- Perform any additional actions or notifications if needed
+    RETURN QUERY
+    SELECT
+        updated_comment_id;
+END;
+$$
+LANGUAGE plpgsql;
+
+
 CREATE OR REPLACE FUNCTION delete_comment_on_post (p_comment_id integer, p_post_id integer, p_user_id integer)
     RETURNS TABLE (
         comment_id int
@@ -541,6 +745,56 @@ $$
 LANGUAGE plpgsql;
 
 
+CREATE OR REPLACE FUNCTION update_message_friend (p_message_id integer, p_user_id integer, p_message_text text)
+    RETURNS TABLE (
+        message_id int
+    )
+    AS $$
+DECLARE
+    updated_message_id int;
+BEGIN
+    -- Check if the source user exists
+    IF NOT EXISTS (
+        SELECT
+            1
+        FROM
+            user_account
+        WHERE
+            id = p_source_user_id) THEN
+    RAISE EXCEPTION 'Source user does not exist.';
+END IF;
+    -- Check if the target user exists
+    IF NOT EXISTS (
+        SELECT
+            1
+        FROM
+            user_account
+        WHERE
+            id = p_target_user_id) THEN
+    RAISE EXCEPTION 'Target user does not exist.';
+END IF;
+    -- Check if the message exists
+    IF NOT EXISTS (
+        SELECT 1
+        FROM user_message
+        WHERE id = p_message_id
+    ) THEN RAISE EXCEPTION 'The message does not exist.';
+END IF;
+    -- Update the message
+    UPDATE user_message
+    SET message_text = p_message_text, updated_at = CURRENT_TIMESTAMP
+    WHERE id = p_message_id AND source_user_id = p_user_id
+    RETURNING
+        id INTO updated_message_id;
+    -- Perform any additional actions or notifications if needed
+    RETURN QUERY
+    SELECT
+        updated_message_id;
+END;
+$$
+LANGUAGE plpgsql;
+
+
 CREATE OR REPLACE FUNCTION delete_message_friend (p_message_id integer, p_user_id integer)
     RETURNS TABLE (
         message_id int
@@ -549,13 +803,32 @@ CREATE OR REPLACE FUNCTION delete_message_friend (p_message_id integer, p_user_i
 DECLARE
     deleted_message_id int;
 BEGIN
+    IF NOT EXISTS (
+        SELECT
+            1
+        FROM
+            user_account
+        WHERE
+            id = p_source_user_id) THEN
+    RAISE EXCEPTION 'Source user does not exist.';
+END IF;
+    -- Check if the target user exists
+    IF NOT EXISTS (
+        SELECT
+            1
+        FROM
+            user_account
+        WHERE
+            id = p_target_user_id) THEN
+    RAISE EXCEPTION 'Target user does not exist.';
+END IF;
     -- Check if the message exists
     IF NOT EXISTS (
         SELECT 1
         FROM user_message
         WHERE id = p_message_id
     ) THEN RAISE EXCEPTION 'The message does not exist.';
-END IF;   
+END IF;
     -- Delete the message
     DELETE FROM user_message
     WHERE id = p_message_id AND source_user_id = p_user_id
@@ -600,6 +873,48 @@ END IF;
     RETURN QUERY
     SELECT
         new_group_id;
+END;
+$$
+LANGUAGE plpgsql;
+
+
+CREATE OR REPLACE FUNCTION update_user_group (p_group_id integer, p_title varchar(50), p_summary text, p_user_id integer)
+    RETURNS TABLE (
+        group_id int
+    )
+    AS $$
+DECLARE
+    updated_group_id int;
+BEGIN
+    -- Check if the group exists
+    IF NOT EXISTS (
+        SELECT
+            1
+        FROM
+            user_group
+        WHERE
+            id = p_group_id) THEN
+    RAISE EXCEPTION 'Group does not exist.';
+END IF;
+    -- Check if the creating user exists
+    IF NOT EXISTS (
+        SELECT
+            1
+        FROM
+            user_account
+        WHERE
+            id = p_user_id) THEN
+    RAISE EXCEPTION 'User does not exist.';
+END IF;
+    UPDATE user_group
+    SET title = COALESCE(p_title, title), summary = COALESCE(p_summary, summary)
+    WHERE id = p_group_id AND created_by_user_id = p_user_id
+    RETURNING
+        id INTO updated_group_id;
+    -- Perform any additional actions or notifications if needed
+    RETURN QUERY
+    SELECT
+        updated_group_id;
 END;
 $$
 LANGUAGE plpgsql;
@@ -694,6 +1009,59 @@ END IF;
     RETURN QUERY
     SELECT
         new_message_id;
+END;
+$$
+LANGUAGE plpgsql;
+
+
+CREATE OR REPLACE FUNCTION update_message_in_group (p_message_id integer, p_message_text text, p_group_id integer, p_user_id integer)
+    RETURNS TABLE (
+        message_id int
+    )
+    AS $$
+DECLARE
+    updated_message_id int;
+BEGIN
+    -- Check if the user exists
+    IF NOT EXISTS (
+        SELECT
+            1
+        FROM
+            user_account
+        WHERE
+            id = p_user_id) THEN
+    RAISE EXCEPTION 'User does not exist.';
+END IF;
+    -- Check if the group exists
+    IF NOT EXISTS (
+        SELECT
+            1
+        FROM
+            user_group
+        WHERE
+            id = p_group_id) THEN
+    RAISE EXCEPTION 'Group does not exist.';
+END IF;
+    -- Check if the user is a member of the group
+    IF NOT EXISTS (
+        SELECT
+            1
+        FROM
+            group_member
+        WHERE
+            group_id = p_group_id
+            AND user_id = p_user_id) THEN
+    RAISE EXCEPTION 'User is not a member of the group. Cannot update a message.';
+END IF;
+    UPDATE group_message
+    SET message_text = p_message_text, updated_at = CURRENT_TIMESTAMP
+    WHERE id = p_message_id AND group_id = p_group_id AND user_id = p_user_id
+    RETURNING
+        id INTO updated_message_id;
+    -- Perform any additional actions or notifications if needed
+    RETURN QUERY
+    SELECT
+        updated_message_id;
 END;
 $$
 LANGUAGE plpgsql;
