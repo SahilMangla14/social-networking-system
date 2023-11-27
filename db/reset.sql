@@ -113,3 +113,10 @@ DROP FUNCTION IF EXISTS view_followers;
 DROP FUNCTION IF EXISTS view_posts_of_other_user;
 
 DROP FUNCTION IF EXISTS who_to_follow;
+
+-- Drop triggers
+DROP TRIGGER IF EXISTS update_post_count_trigger ON post;
+
+DROP TRIGGER IF EXISTS update_follower_count_trigger ON follow_request;
+
+DROP TRIGGER IF EXISTS update_following_count_trigger ON follow_request;
