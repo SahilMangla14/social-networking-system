@@ -55,7 +55,12 @@ def get_current_user_id(
     return user["id"]
 
 
-@app.post("/create-user", response_model=int, status_code=status.HTTP_201_CREATED)
+@app.post(
+    "/create-user",
+    response_model=int,
+    status_code=status.HTTP_201_CREATED,
+    tags=["user_account"],
+)
 def create_user(user_account: UserAccount):
     try:
         with get_db() as db:
@@ -87,10 +92,14 @@ def create_user(user_account: UserAccount):
 
 
 @app.post(
-    "/make-follow-request", response_model=int, status_code=status.HTTP_201_CREATED
+    "/make-follow-request",
+    response_model=int,
+    status_code=status.HTTP_201_CREATED,
+    tags=["follow_request"],
 )
 def make_follow_request(
-    target_user_id: int, source_user_id: int = Depends(get_current_user_id)
+    target_user_id: int,
+    source_user_id: int = Depends(get_current_user_id),
 ):
     try:
         with get_db() as db:
@@ -106,7 +115,7 @@ def make_follow_request(
         )
 
 
-@app.get("/view-pending-follow-requests", response_model=list)
+@app.get("/view-pending-follow-requests", response_model=list, tags=["follow_request"])
 def view_pending_follow_requests(user_id: int = Depends(get_current_user_id)):
     try:
         with get_db() as db:
@@ -134,7 +143,10 @@ def view_pending_follow_requests(user_id: int = Depends(get_current_user_id)):
 
 
 @app.post(
-    "/accept-follow-requests", response_model=dict, status_code=status.HTTP_200_OK
+    "/accept-follow-requests",
+    response_model=dict,
+    status_code=status.HTTP_200_OK,
+    tags=["follow_request"],
 )
 def accept_follow_requests(
     request_ids: list[int], user_id: int = Depends(get_current_user_id)
@@ -158,7 +170,12 @@ def accept_follow_requests(
         )
 
 
-@app.post("/create-post", response_model=dict, status_code=status.HTTP_201_CREATED)
+@app.post(
+    "/create-post",
+    response_model=dict,
+    status_code=status.HTTP_201_CREATED,
+    tags=["post"],
+)
 def create_post(message_text: str, user_id: int = Depends(get_current_user_id)):
     try:
         with get_db() as db:
@@ -173,7 +190,12 @@ def create_post(message_text: str, user_id: int = Depends(get_current_user_id)):
         )
 
 
-@app.post("/like-post", response_model=dict, status_code=status.HTTP_201_CREATED)
+@app.post(
+    "/like-post",
+    response_model=dict,
+    status_code=status.HTTP_201_CREATED,
+    tags=["post_like"],
+)
 def like_post(post_id: int, user_id: int = Depends(get_current_user_id)):
     try:
         with get_db() as db:
@@ -190,7 +212,12 @@ def like_post(post_id: int, user_id: int = Depends(get_current_user_id)):
         )
 
 
-@app.post("/comment-on-post", response_model=dict, status_code=status.HTTP_201_CREATED)
+@app.post(
+    "/comment-on-post",
+    response_model=dict,
+    status_code=status.HTTP_201_CREATED,
+    tags=["post_comment"],
+)
 def comment_on_post(
     post_id: int, content: str, user_id: int = Depends(get_current_user_id)
 ):
@@ -211,7 +238,12 @@ def comment_on_post(
         )
 
 
-@app.post("/message-friend", response_model=dict, status_code=status.HTTP_201_CREATED)
+@app.post(
+    "/message-friend",
+    response_model=dict,
+    status_code=status.HTTP_201_CREATED,
+    tags=["user_message"],
+)
 def message_friend(
     target_user_id: int,
     message_text: str,
@@ -236,8 +268,44 @@ def message_friend(
         )
 
 
+@app.get(
+    "/view-messages",
+    response_model=list,
+    status_code=status.HTTP_200_OK,
+    tags=["user_message"],
+)
+def view_messages(user_id: int = Depends(get_current_user_id)):
+    try:
+        with get_db() as db:
+            db.callproc("view_messages", [user_id])
+            results = db.fetchall()
+
+            response_data = []
+            for result in results:
+                message_data = {
+                    "message_id": result[0],
+                    "source_user_id": result[1],
+                    "user_name": result[2],
+                    "message_text": result[3],
+                    "created_at": result[4],
+                }
+                response_data.append(message_data)
+
+            return response_data
+    except HTTPException as e:
+        raise e  # Rethrow HTTPException with status code and details
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error calling stored procedure view_messages: {e}",
+        )
+
+
 @app.post(
-    "/create-user-group", response_model=dict, status_code=status.HTTP_201_CREATED
+    "/create-user-group",
+    response_model=dict,
+    status_code=status.HTTP_201_CREATED,
+    tags=["user_group"],
 )
 def create_user_group(
     title: str,
@@ -261,7 +329,12 @@ def create_user_group(
         )
 
 
-@app.post("/message-in-group", response_model=dict, status_code=status.HTTP_201_CREATED)
+@app.post(
+    "/message-in-group",
+    response_model=dict,
+    status_code=status.HTTP_201_CREATED,
+    tags=["group_message"],
+)
 def message_in_group(
     group_id: int,
     message_text: str,
@@ -284,7 +357,12 @@ def message_in_group(
         )
 
 
-@app.get("/view-group-messages", response_model=list, status_code=status.HTTP_200_OK)
+@app.get(
+    "/view-group-messages",
+    response_model=list,
+    status_code=status.HTTP_200_OK,
+    tags=["group_message"],
+)
 def view_group_messages(group_id: int, user_id: int = Depends(get_current_user_id)):
     try:
         with get_db() as db:
@@ -313,7 +391,10 @@ def view_group_messages(group_id: int, user_id: int = Depends(get_current_user_i
 
 
 @app.post(
-    "/add-members-to-group", response_model=list, status_code=status.HTTP_201_CREATED
+    "/add-members-to-group",
+    response_model=list,
+    status_code=status.HTTP_201_CREATED,
+    tags=["group_member"],
 )
 def add_members_to_group(
     group_id: int,
@@ -340,7 +421,12 @@ def add_members_to_group(
         )
 
 
-@app.get("/view-user-posts", response_model=list, status_code=status.HTTP_200_OK)
+@app.get(
+    "/view-user-posts",
+    response_model=list,
+    status_code=status.HTTP_200_OK,
+    tags=["post"],
+)
 def view_user_posts(user_id: int = Depends(get_current_user_id)):
     try:
         with get_db() as db:
@@ -368,7 +454,12 @@ def view_user_posts(user_id: int = Depends(get_current_user_id)):
         )
 
 
-@app.get("/view-followers", response_model=list, status_code=status.HTTP_200_OK)
+@app.get(
+    "/view-followers",
+    response_model=list,
+    status_code=status.HTTP_200_OK,
+    tags=["follow_request"],
+)
 def view_followers(user_id: int = Depends(get_current_user_id)):
     try:
         with get_db() as db:
@@ -400,6 +491,7 @@ def view_followers(user_id: int = Depends(get_current_user_id)):
     "/view-posts-of-other-user/{other_user_id}",
     response_model=list,
     status_code=status.HTTP_200_OK,
+    tags=["post"],
 )
 def view_posts_of_other_user(
     other_user_id: int, viewer_user_id: int = Depends(get_current_user_id)
@@ -433,7 +525,12 @@ def view_posts_of_other_user(
         )
 
 
-@app.get("/who-to-follow", response_model=list, status_code=status.HTTP_200_OK)
+@app.get(
+    "/who-to-follow",
+    response_model=list,
+    status_code=status.HTTP_200_OK,
+    tags=["follow_request"],
+)
 def who_to_follow(user_id: int = Depends(get_current_user_id)):
     try:
         with get_db() as db:
@@ -459,7 +556,13 @@ def who_to_follow(user_id: int = Depends(get_current_user_id)):
             detail=f"Error calling stored procedure who_to_follow: {e}",
         )
 
-@app.get("/view-post-feed", response_model=list, status_code=status.HTTP_200_OK)
+
+@app.get(
+    "/view-post-feed",
+    response_model=list,
+    status_code=status.HTTP_200_OK,
+    tags=["post"],
+)
 def view_post_feed(user_id: int = Depends(get_current_user_id)):
     try:
         with get_db() as db:
@@ -486,16 +589,22 @@ def view_post_feed(user_id: int = Depends(get_current_user_id)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error calling stored procedure view_post_feed: {e}",
         )
-    
+
 
 ## =========delete routes===========
 
-@app.delete("/delete-user", response_model=dict, status_code=status.HTTP_200_OK)
+
+@app.delete(
+    "/delete-user",
+    response_model=dict,
+    status_code=status.HTTP_200_OK,
+    tags=["user_account"],
+)
 def delete_user(user_id: int = Depends(get_current_user_id)):
     try:
         with get_db() as db:
             db.callproc("delete_user", [user_id])
-            results = db.fetchall()    
+            results = db.fetchall()
             deleted_user = {"deleted_user_id": results}
             return deleted_user
 
@@ -508,13 +617,18 @@ def delete_user(user_id: int = Depends(get_current_user_id)):
         )
 
 
-@app.delete("/delete-post/{post_id}", response_model=dict, status_code=status.HTTP_200_OK)
+@app.delete(
+    "/delete-post/{post_id}",
+    response_model=dict,
+    status_code=status.HTTP_200_OK,
+    tags=["post"],
+)
 def delete_post(post_id: int, user_id: int = Depends(get_current_user_id)):
     try:
         with get_db() as db:
             db.callproc("delete_post", [post_id, user_id])
             results = db.fetchall()
-            deleted_post_id = {"deleted_post_id": results}    
+            deleted_post_id = {"deleted_post_id": results}
             return deleted_post_id
 
     except HTTPException as e:
@@ -524,16 +638,22 @@ def delete_post(post_id: int, user_id: int = Depends(get_current_user_id)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error calling stored procedure delete_post: {e}",
         )
-    
 
     # unlike_post
-@app.delete("/unlike-post/{post_id}", response_model=dict, status_code=status.HTTP_200_OK)
+
+
+@app.delete(
+    "/unlike-post/{post_id}",
+    response_model=dict,
+    status_code=status.HTTP_200_OK,
+    tags=["post_like"],
+)
 def unlike_post(post_id: int, user_id: int = Depends(get_current_user_id)):
     try:
         with get_db() as db:
             db.callproc("unlike_post", [post_id, user_id])
             results = db.fetchall()
-            unliked_id = {"unliked_id": results}    
+            unliked_id = {"unliked_id": results}
             return unliked_id
 
     except HTTPException as e:
@@ -546,13 +666,20 @@ def unlike_post(post_id: int, user_id: int = Depends(get_current_user_id)):
 
 
 # delete_comment_on_post
-@app.delete("/delete-comment-on-post/{post_id}/{comment_id}", response_model=dict, status_code=status.HTTP_200_OK)
-def delete_comment_on_post(comment_id:int, post_id: int, user_id: int = Depends(get_current_user_id)):
+@app.delete(
+    "/delete-comment-on-post/{post_id}/{comment_id}",
+    response_model=dict,
+    status_code=status.HTTP_200_OK,
+    tags=["post_comment"],
+)
+def delete_comment_on_post(
+    comment_id: int, post_id: int, user_id: int = Depends(get_current_user_id)
+):
     try:
         with get_db() as db:
             db.callproc("delete_comment_on_post", [comment_id, post_id, user_id])
             results = db.fetchall()
-            deleted_comment_id = {"deleted_comment_id": results}    
+            deleted_comment_id = {"deleted_comment_id": results}
             return deleted_comment_id
 
     except HTTPException as e:
@@ -563,13 +690,19 @@ def delete_comment_on_post(comment_id:int, post_id: int, user_id: int = Depends(
             detail=f"Error calling stored procedure delete_comment_on_post: {e}",
         )
 
-@app.delete("/delete-message-friend/{message_id}", response_model=dict, status_code=status.HTTP_200_OK)
-def delete_message_friend(message_id:int, user_id: int = Depends(get_current_user_id)):
+
+@app.delete(
+    "/delete-message-friend/{message_id}",
+    response_model=dict,
+    status_code=status.HTTP_200_OK,
+    tags=["user_message"],
+)
+def delete_message_friend(message_id: int, user_id: int = Depends(get_current_user_id)):
     try:
         with get_db() as db:
             db.callproc("delete_message_friend", [message_id, user_id])
             results = db.fetchall()
-            deleted_message_id = {"deleted_message_id": results}    
+            deleted_message_id = {"deleted_message_id": results}
             return deleted_message_id
 
     except HTTPException as e:
@@ -578,15 +711,21 @@ def delete_message_friend(message_id:int, user_id: int = Depends(get_current_use
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error calling stored procedure delete_message_friend: {e}",
-        ) 
+        )
 
-@app.delete("/delete-user-group/{group_id}", response_model=dict, status_code=status.HTTP_200_OK)
-def delete_user_group(group_id:int, user_id: int = Depends(get_current_user_id)):
+
+@app.delete(
+    "/delete-user-group/{group_id}",
+    response_model=dict,
+    status_code=status.HTTP_200_OK,
+    tags=["user_group"],
+)
+def delete_user_group(group_id: int, user_id: int = Depends(get_current_user_id)):
     try:
         with get_db() as db:
             db.callproc("delete_user_group", [group_id, user_id])
             results = db.fetchall()
-            deleted_group_id = {"deleted_group_id": results}    
+            deleted_group_id = {"deleted_group_id": results}
             return deleted_group_id
 
     except HTTPException as e:
@@ -595,15 +734,23 @@ def delete_user_group(group_id:int, user_id: int = Depends(get_current_user_id))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error calling stored procedure delete_user_group: {e}",
-        ) 
+        )
 
-@app.delete("/delete-message-in-group/{group_id}/{message_id}", response_model=dict, status_code=status.HTTP_200_OK)
-def delete_message_in_group(group_id:int, message_id:int, user_id: int = Depends(get_current_user_id)):
+
+@app.delete(
+    "/delete-message-in-group/{group_id}/{message_id}",
+    response_model=dict,
+    status_code=status.HTTP_200_OK,
+    tags=["group_message"],
+)
+def delete_message_in_group(
+    group_id: int, message_id: int, user_id: int = Depends(get_current_user_id)
+):
     try:
         with get_db() as db:
-            db.callproc("delete_message_in_group", [group_id, message_id ,user_id])
+            db.callproc("delete_message_in_group", [group_id, message_id, user_id])
             results = db.fetchall()
-            deleted_message_id = {"deleted_message_id": results}    
+            deleted_message_id = {"deleted_message_id": results}
             return deleted_message_id
 
     except HTTPException as e:
@@ -612,16 +759,24 @@ def delete_message_in_group(group_id:int, message_id:int, user_id: int = Depends
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error calling stored procedure delete_message_in_group: {e}",
-        ) 
+        )
 
-#remove members from a group
-@app.delete("/remove-members-from-group", response_model=list, status_code=status.HTTP_200_OK)
-def remove_members_from_group(group_id: int, members_id: list[int], creator_id=Depends(get_current_user_id)):
+
+# remove members from a group
+@app.delete(
+    "/remove-members-from-group",
+    response_model=list,
+    status_code=status.HTTP_200_OK,
+    tags=["group_member"],
+)
+def remove_members_from_group(
+    group_id: int, members_id: list[int], creator_id=Depends(get_current_user_id)
+):
     try:
         with get_db() as db:
-            db.callproc("remove_members_from_group", [group_id , members_id, creator_id])
+            db.callproc("remove_members_from_group", [group_id, members_id, creator_id])
             results = db.fetchall()
-            deleted_members = []    
+            deleted_members = []
             for result in results:
                 deleted_members.append({"member_id": result[0]})
             return deleted_members
@@ -632,7 +787,4 @@ def remove_members_from_group(group_id: int, members_id: list[int], creator_id=D
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error calling stored procedure remove_members_from_group: {e}",
-        ) 
-    
-
-
+        )

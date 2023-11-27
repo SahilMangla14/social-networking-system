@@ -26,12 +26,14 @@ def reset_db():
 def load_procedures():
     execute_sql_script("procedures.sql")
 
+
 def seed_data():
     execute_sql_script("seed.sql")
 
+
 if __name__ == "__main__":
-    reset_db()
+    # reset_db()
     create_tables()
     load_procedures()
-    seed_user_data.seed_data()
-    seed_data()  
+    # seed_user_data.seed_data()
+    # seed_data()

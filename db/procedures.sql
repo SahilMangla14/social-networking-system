@@ -566,6 +566,45 @@ END;
 $$
 LANGUAGE plpgsql;
 
+CREATE OR REPLACE FUNCTION view_messages (p_user_id integer)
+    RETURNS TABLE (
+        message_id int,
+        source_user_id int,
+        user_name text,
+        message_text text,
+        created_at timestamp
+    )
+    AS $$
+BEGIN
+    -- Check if the user exists
+    IF NOT EXISTS (
+        SELECT
+            1
+        FROM
+            user_account
+        WHERE
+            id = p_user_id) THEN
+    RAISE EXCEPTION 'User does not exist.';
+END IF;
+    -- Retrieve group messages
+    RETURN QUERY
+    SELECT
+        m.id AS message_id,
+        m.source_user_id,
+        CONCAT(ua.first_name, ' ', ua.last_name) AS user_name,
+        m.message_text,
+        m.created_at
+    FROM
+        user_message m
+        JOIN user_account ua ON m.source_user_id = ua.id
+    WHERE
+        m.target_user_id = p_user_id
+    ORDER BY
+        m.created_at;
+END;
+$$
+LANGUAGE plpgsql;
+
 CREATE OR REPLACE FUNCTION delete_message_friend (p_message_id integer, p_user_id integer)
     RETURNS TABLE (
         message_id int
