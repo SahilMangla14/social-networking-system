@@ -27,7 +27,7 @@ LANGUAGE plpgsql;
 
 
 CREATE OR REPLACE FUNCTION delete_user (p_email text)
-    RETURNS v_user_id int
+    RETURNS int
     AS $$
 DECLARE
     v_user_id int;
