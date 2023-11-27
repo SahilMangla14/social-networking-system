@@ -3,7 +3,7 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from passlib.context import CryptContext
 from pydantic import ValidationError
-from schemas import UserAccount
+from schemas import *
 from typing import Annotated
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -787,4 +787,180 @@ def remove_members_from_group(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error calling stored procedure remove_members_from_group: {e}",
+        )
+
+# ************** Update Routes *********************
+# Update user data
+@app.patch(
+    "/update-user",
+    response_model=int,
+    status_code=status.HTTP_200_OK,
+    tags=["user_account"],
+)
+def update_user(user_account: UpdateUserAccount, user_id: int = Depends(get_current_user_id)):
+    try:
+        with get_db() as db:
+            db.callproc(
+                "update_user",
+                [
+                    user_id,
+                    user_account.first_name,
+                    user_account.middle_name,
+                    user_account.last_name,
+                    user_account.mobile_number,
+                    user_account.email,
+                    get_password_hash(user_account.password) if user_account.password else None,
+                    user_account.bio,
+                ],
+            )
+
+            updated_user_id = db.fetchone()[0]
+            return updated_user_id
+    except ValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Validation error: {e}",
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error calling stored procedure update_user: {e}",
+        )
+
+# Edit a post
+@app.patch(
+    "/edit-post/{post_id}",
+    response_model=dict,
+    status_code=status.HTTP_200_OK,
+    tags=["post"],
+)
+def update_post(post_id: int, message_text: str, user_id: int = Depends(get_current_user_id)):
+    try:
+        with get_db() as db:
+            db.callproc("update_post", [post_id, user_id, message_text])
+            result = db.fetchone()
+            updated_post = {"post_id": result[0]}
+            return updated_post
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error calling stored procedure update_post: {e}",
+        )
+    
+# Edit a comment
+@app.patch(
+    "/edit-comment/{post_id}/{comment_id}",
+    response_model=dict,
+    status_code=status.HTTP_200_OK,
+    tags=["post_comment"],
+)
+def update_comment(
+    comment_id: int, content: str, post_id: int, user_id: int = Depends(get_current_user_id)
+):
+    try:
+        with get_db() as db:
+            db.callproc("update_comment_on_post", [comment_id, content, post_id, user_id])
+            result = db.fetchone()
+
+            response_data = {"comment_id": result[0]}
+
+            return response_data
+    except HTTPException as e:
+        raise e  # Rethrow HTTPException with status code and details
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error calling stored procedure update_comment: {e}",
+        )
+    
+# Edit a friend message
+@app.patch(
+    "/edit-message-friend/{message_id}",
+    response_model=dict,
+    status_code=status.HTTP_200_OK,
+    tags=["user_message"],
+)
+def update_message(
+    message_id: int,
+    message_text: str,
+    source_user_id: int = Depends(get_current_user_id),
+):
+    try:
+        with get_db() as db:
+            db.callproc(
+                "update_message_friend", [message_id, source_user_id, message_text]
+            )
+            result = db.fetchone()
+
+            response_data = {"message_id": result[0]}
+
+            return response_data
+    except HTTPException as e:
+        raise e  # Rethrow HTTPException with status code and details
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error calling stored procedure update_message: {e}",
+        )
+    
+# Edit a group message
+@app.patch(
+    "/update-group-message/{group_id}/{message_id}",
+    response_model=dict,
+    status_code=status.HTTP_200_OK,
+    tags=["group_message"],
+)
+def update_group_message(
+    message_id: int,
+    message_text: str,
+    group_id: int,
+    user_id: int = Depends(get_current_user_id),
+):
+    try:
+        with get_db() as db:
+            db.callproc(
+                "update_message_in_group", [message_id, message_text, group_id, user_id]
+            )
+            result = db.fetchone()
+
+            response_data = {"message_id": result[0]}
+
+            return response_data
+    except HTTPException as e:
+        raise e  # Rethrow HTTPException with status code and details
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error calling stored procedure update_group_message: {e}",
+        )
+    
+# Update group data
+@app.patch(
+    "/update-user-group/{group_id}",
+    response_model=dict,
+    status_code=status.HTTP_200_OK,
+    tags=["user_group"],
+)
+def update_user_group(
+    group_id: int,
+    title: str | None,
+    summary: str | None,
+    created_by_user_id: int = Depends(get_current_user_id),
+):
+    try:
+        with get_db() as db:
+            db.callproc(
+                "update_user_group", [group_id, title, summary, created_by_user_id]
+            )
+            result = db.fetchone()
+
+            response_data = {"group_id": result[0]}
+
+            return response_data
+    except HTTPException as e:
+        raise e  # Rethrow HTTPException with status code and details
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error calling stored procedure update_user_group: {e}",
         )
