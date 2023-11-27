@@ -43,8 +43,9 @@ BEGIN
     RAISE EXCEPTION 'User with the provided mobile number or email already exists.';
 END IF;
     -- Update user with optional attributes
-    UPDATE user_account
-    SET 
+    UPDATE
+        user_account
+    SET
         first_name = COALESCE(p_first_name, first_name),
         middle_name = COALESCE(p_middle_name, middle_name),
         last_name = COALESCE(p_last_name, last_name),
@@ -52,14 +53,14 @@ END IF;
         email = COALESCE(p_email, email),
         password_hash = COALESCE(p_password_hash, password_hash),
         bio = COALESCE(p_bio, bio)
-    WHERE id = p_user_id
-    RETURNING id INTO v_user_id;
-
+    WHERE
+        id = p_user_id
+    RETURNING
+        id INTO v_user_id;
     RETURN v_user_id;
 END;
 $$
 LANGUAGE plpgsql;
-
 
 CREATE OR REPLACE FUNCTION delete_user (p_email text)
     RETURNS int
@@ -134,7 +135,6 @@ END;
 $$
 LANGUAGE plpgsql;
 
-
 CREATE OR REPLACE FUNCTION view_pending_follow_requests (p_user_id integer)
     RETURNS TABLE (
         request_id int,
@@ -170,7 +170,6 @@ END IF;
 END;
 $$
 LANGUAGE plpgsql;
-
 
 CREATE OR REPLACE FUNCTION accept_follow_requests (p_user_id integer, p_request_ids integer[])
     RETURNS TABLE (
@@ -230,7 +229,6 @@ END;
 $$
 LANGUAGE plpgsql;
 
-
 CREATE OR REPLACE FUNCTION reject_follow_requests (p_user_id integer, p_request_ids integer[])
     RETURNS TABLE (
         request_id int,
@@ -276,8 +274,7 @@ END IF;
             UPDATE
                 follow_request
             SET
-                request_status = 'REJECTED',
-                updated_at = CURRENT_TIMESTAMP
+                request_status = 'REJECTED'
             WHERE
                 id = request_id;
             -- Perform any additional actions or notifications if needed
@@ -288,7 +285,6 @@ END IF;
 END;
 $$
 LANGUAGE plpgsql;
-
 
 CREATE OR REPLACE FUNCTION create_post (p_user_id integer, p_message_text text)
     RETURNS TABLE (
@@ -328,7 +324,6 @@ END;
 $$
 LANGUAGE plpgsql;
 
-
 CREATE OR REPLACE FUNCTION update_post (p_post_id integer, p_user_id integer, p_message_text text)
     RETURNS TABLE (
         post_id int
@@ -354,13 +349,19 @@ END IF;
         FROM
             post
         WHERE
-            id = p_post_id AND user_id = p_user_id) THEN
+            id = p_post_id
+            AND user_id = p_user_id) THEN
     RAISE EXCEPTION 'Post does not exist.';
 END IF;
     -- Update the post
-    UPDATE post
-    SET message_text = p_message_text, updated_at = CURRENT_TIMESTAMP
-    WHERE id = p_post_id AND user_id = p_user_id
+    UPDATE
+        post
+    SET
+        message_text = p_message_text
+        -- updated_at = CURRENT_TIMESTAMP
+    WHERE
+        id = p_post_id
+        AND user_id = p_user_id
     RETURNING
         id INTO updated_post_id;
     -- Perform any additional actions or notifications if needed
@@ -370,7 +371,6 @@ END IF;
 END;
 $$
 LANGUAGE plpgsql;
-
 
 CREATE OR REPLACE FUNCTION delete_post (p_post_id integer, p_user_id integer)
     RETURNS TABLE (
@@ -397,7 +397,8 @@ END IF;
         FROM
             post
         WHERE
-            id = p_post_id AND user_id = p_user_id) THEN
+            id = p_post_id
+            AND user_id = p_user_id) THEN
     RAISE EXCEPTION 'Post does not exist.';
 END IF;
     -- Delete the post
@@ -646,9 +647,14 @@ END IF;
     RAISE EXCEPTION 'Comment does not exist.';
 END IF;
     -- Update the comment
-    UPDATE post_comment
-    SET content = p_content, updated_at = CURRENT_TIMESTAMP
-    WHERE post_id = p_post_id AND author_user_id = p_user_id
+    UPDATE
+        post_comment
+    SET
+        content = p_content
+        -- updated_at = CURRENT_TIMESTAMP
+    WHERE
+        post_id = p_post_id
+        AND author_user_id = p_user_id
     RETURNING
         id INTO updated_comment_id;
     -- Perform any additional actions or notifications if needed
@@ -799,15 +805,23 @@ END IF;
 END IF;
     -- Check if the message exists
     IF NOT EXISTS (
-        SELECT 1
-        FROM user_message
-        WHERE id = p_message_id
-    ) THEN RAISE EXCEPTION 'The message does not exist.';
+        SELECT
+            1
+        FROM
+            user_message
+        WHERE
+            id = p_message_id) THEN
+    RAISE EXCEPTION 'The message does not exist.';
 END IF;
     -- Update the message
-    UPDATE user_message
-    SET message_text = p_message_text, updated_at = CURRENT_TIMESTAMP
-    WHERE id = p_message_id AND source_user_id = p_user_id
+    UPDATE
+        user_message
+    SET
+        message_text = p_message_text
+        -- updated_at = CURRENT_TIMESTAMP
+    WHERE
+        id = p_message_id
+        AND source_user_id = p_user_id
     RETURNING
         id INTO updated_message_id;
     -- Perform any additional actions or notifications if needed
@@ -817,7 +831,6 @@ END IF;
 END;
 $$
 LANGUAGE plpgsql;
-
 
 CREATE OR REPLACE FUNCTION view_messages (p_user_id integer)
     RETURNS TABLE (
@@ -971,9 +984,14 @@ END IF;
             id = p_user_id) THEN
     RAISE EXCEPTION 'User does not exist.';
 END IF;
-    UPDATE user_group
-    SET title = COALESCE(p_title, title), summary = COALESCE(p_summary, summary)
-    WHERE id = p_group_id AND created_by_user_id = p_user_id
+    UPDATE
+        user_group
+    SET
+        title = COALESCE(p_title, title),
+        summary = COALESCE(p_summary, summary)
+    WHERE
+        id = p_group_id
+        AND created_by_user_id = p_user_id
     RETURNING
         id INTO updated_group_id;
     -- Perform any additional actions or notifications if needed
@@ -983,7 +1001,6 @@ END IF;
 END;
 $$
 LANGUAGE plpgsql;
-
 
 CREATE OR REPLACE FUNCTION delete_user_group (p_group_id integer, p_user_id integer)
     RETURNS TABLE (
@@ -1117,9 +1134,15 @@ END IF;
             AND user_id = p_user_id) THEN
     RAISE EXCEPTION 'User is not a member of the group. Cannot update a message.';
 END IF;
-    UPDATE group_message
-    SET message_text = p_message_text, updated_at = CURRENT_TIMESTAMP
-    WHERE id = p_message_id AND group_id = p_group_id AND user_id = p_user_id
+    UPDATE
+        group_message
+    SET
+        message_text = p_message_text
+        -- updated_at = CURRENT_TIMESTAMP
+    WHERE
+        id = p_message_id
+        AND group_id = p_group_id
+        AND user_id = p_user_id
     RETURNING
         id INTO updated_message_id;
     -- Perform any additional actions or notifications if needed
@@ -1129,7 +1152,6 @@ END IF;
 END;
 $$
 LANGUAGE plpgsql;
-
 
 CREATE OR REPLACE FUNCTION delete_message_in_group (p_message_id integer, p_group_id integer, p_user_id integer)
     RETURNS TABLE (

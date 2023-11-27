@@ -36,7 +36,7 @@ def load_triggers():
 
 
 if __name__ == "__main__":
-    # reset_db()
+    reset_db()
     create_tables()
     load_procedures()
     load_triggers()

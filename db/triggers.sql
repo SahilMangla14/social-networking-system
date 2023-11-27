@@ -94,3 +94,99 @@ CREATE TRIGGER update_following_count_trigger
     AFTER UPDATE ON follow_request
     FOR EACH ROW
     EXECUTE FUNCTION update_following_count ();
+
+CREATE OR REPLACE FUNCTION update_follow_request_updated_at ()
+    RETURNS TRIGGER
+    AS $$
+BEGIN
+    -- Update the updated_at timestamp whenever a row is updated
+    NEW.updated_at := CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$
+LANGUAGE plpgsql;
+
+CREATE TRIGGER follow_request_updated_at_trigger
+    BEFORE UPDATE ON follow_request
+    FOR EACH ROW
+    EXECUTE FUNCTION update_follow_request_updated_at ();
+
+CREATE OR REPLACE FUNCTION update_user_message_updated_at ()
+    RETURNS TRIGGER
+    AS $$
+BEGIN
+    -- Update the updated_at timestamp whenever a row is updated
+    NEW.updated_at := CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$
+LANGUAGE plpgsql;
+
+CREATE TRIGGER user_message_updated_at_trigger
+    BEFORE UPDATE ON user_message
+    FOR EACH ROW
+    EXECUTE FUNCTION update_user_message_updated_at ();
+
+CREATE OR REPLACE FUNCTION update_post_updated_at ()
+    RETURNS TRIGGER
+    AS $$
+BEGIN
+    -- Update the updated_at timestamp whenever a row is updated
+    NEW.updated_at := CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$
+LANGUAGE plpgsql;
+
+CREATE TRIGGER post_updated_at_trigger
+    BEFORE UPDATE ON post
+    FOR EACH ROW
+    EXECUTE FUNCTION update_post_updated_at ();
+
+CREATE OR REPLACE FUNCTION update_post_like_updated_at ()
+    RETURNS TRIGGER
+    AS $$
+BEGIN
+    -- Update the updated_at timestamp whenever a row is updated
+    NEW.updated_at := CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$
+LANGUAGE plpgsql;
+
+CREATE TRIGGER post_like_updated_at_trigger
+    BEFORE UPDATE ON post_like
+    FOR EACH ROW
+    EXECUTE FUNCTION update_post_like_updated_at ();
+
+CREATE OR REPLACE FUNCTION update_post_comment_updated_at ()
+    RETURNS TRIGGER
+    AS $$
+BEGIN
+    -- Update the updated_at timestamp whenever a row is updated
+    NEW.updated_at := CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$
+LANGUAGE plpgsql;
+
+CREATE TRIGGER post_comment_updated_at_trigger
+    BEFORE UPDATE ON post_comment
+    FOR EACH ROW
+    EXECUTE FUNCTION update_post_comment_updated_at ();
+
+CREATE OR REPLACE FUNCTION update_group_message_updated_at ()
+    RETURNS TRIGGER
+    AS $$
+BEGIN
+    -- Update the updated_at timestamp whenever a row is updated
+    NEW.updated_at := CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$
+LANGUAGE plpgsql;
+
+CREATE TRIGGER group_message_updated_at_trigger
+    BEFORE UPDATE ON group_message
+    FOR EACH ROW
+    EXECUTE FUNCTION update_group_message_updated_at ();
