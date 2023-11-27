@@ -25,7 +25,6 @@ END;
 $$
 LANGUAGE plpgsql;
 
-
 CREATE OR REPLACE FUNCTION delete_user (p_email text)
     RETURNS v_user_id int
     AS $$
@@ -45,13 +44,12 @@ END IF;
     -- Delete the user from the user_account table
     DELETE FROM user_account
     WHERE id = p_id
-    RETURNING id INTO v_user_id;
-    
+    RETURNING
+        id INTO v_user_id;
     RETURN v_user_id;
 END;
 $$
 LANGUAGE plpgsql;
-
 
 CREATE OR REPLACE FUNCTION make_follow_request (p_source_user_id integer, p_target_user_id integer)
     RETURNS int
@@ -232,7 +230,6 @@ END;
 $$
 LANGUAGE plpgsql;
 
-
 CREATE OR REPLACE FUNCTION delete_post (p_post_id integer, p_user_id integer)
     RETURNS TABLE (
         post_id int
@@ -248,12 +245,14 @@ BEGIN
         FROM
             post
         WHERE
-            id = p_post_id AND user_id = p_user_id) THEN
+            id = p_post_id
+            AND user_id = p_user_id) THEN
     RAISE EXCEPTION 'The post which you are trying to delete does not exist.';
 END IF;
     -- Delete the post
     DELETE FROM post
-    WHERE user_id = p_user_id AND id = p_post_id
+    WHERE user_id = p_user_id
+        AND id = p_post_id
     RETURNING
         id INTO deleted_post_id;
     -- Update user's post count
@@ -270,7 +269,6 @@ END IF;
 END;
 $$
 LANGUAGE plpgsql;
-
 
 CREATE OR REPLACE FUNCTION like_post (p_user_id integer, p_post_id integer)
     RETURNS TABLE (
@@ -300,6 +298,20 @@ END IF;
             id = p_post_id) THEN
     RAISE EXCEPTION 'Post does not exist.';
 END IF;
+    -- Check if the post is by a follower or following
+    IF NOT EXISTS (
+        SELECT
+            1
+        FROM
+            post p
+            JOIN follow_request fr ON p.user_id = fr.source_user_id
+                OR p.user_id = fr.target_user_id
+        WHERE
+            p.id = p_post_id
+            AND p_user_id IN (fr.source_user_id, fr.target_user_id)
+            AND fr.request_status = 'ACCEPTED') THEN
+    RAISE EXCEPTION 'Post is not by a follower or following 🥺';
+END IF;
     -- Check if the user has already liked the post
     IF EXISTS (
         SELECT
@@ -327,7 +339,6 @@ END IF;
 END;
 $$
 LANGUAGE plpgsql;
-
 
 CREATE OR REPLACE FUNCTION unlike_post (p_post_id integer, p_user_id integer)
     RETURNS TABLE (
@@ -370,8 +381,10 @@ END IF;
 END IF;
     -- Insert new post like
     DELETE FROM post_like
-    WHERE user_id = p_user_id AND post_id = p_post_id
-    RETURNING id into deleted_like_id;
+    WHERE user_id = p_user_id
+        AND post_id = p_post_id
+    RETURNING
+        id INTO deleted_like_id;
     -- Update post's like count
     -- UPDATE post
     -- SET like_count = like_count + 1
@@ -383,7 +396,6 @@ END IF;
 END;
 $$
 LANGUAGE plpgsql;
-
 
 CREATE OR REPLACE FUNCTION comment_on_post (p_user_id integer, p_post_id integer, p_content text)
     RETURNS TABLE (
@@ -402,6 +414,20 @@ BEGIN
         WHERE
             id = p_user_id) THEN
     RAISE EXCEPTION 'User does not exist.';
+END IF;
+    -- Check if the post is by a follower or following
+    IF NOT EXISTS (
+        SELECT
+            1
+        FROM
+            post p
+            JOIN follow_request fr ON p.user_id = fr.source_user_id
+                OR p.user_id = fr.target_user_id
+        WHERE
+            p.id = p_post_id
+            AND p_user_id IN (fr.source_user_id, fr.target_user_id)
+            AND fr.request_status = 'ACCEPTED') THEN
+    RAISE EXCEPTION 'Post is not by a follower or following 🥺';
 END IF;
     -- Check if the post exists
     IF NOT EXISTS (
@@ -430,14 +456,13 @@ END;
 $$
 LANGUAGE plpgsql;
 
-
 CREATE OR REPLACE FUNCTION delete_comment_on_post (p_comment_id integer, p_post_id integer, p_user_id integer)
     RETURNS TABLE (
         comment_id int
     )
     AS $$
 DECLARE
-deleted_comment_id int;
+    deleted_comment_id int;
 BEGIN
     -- Check if the user exists
     IF NOT EXISTS (
@@ -471,7 +496,9 @@ END IF;
 END IF;
     -- Delete the comment
     DELETE FROM post_comment
-    WHERE id = p_comment_id AND post_id = p_post_id AND author_user_id = p_user_id
+    WHERE id = p_comment_id
+        AND post_id = p_post_id
+        AND author_user_id = p_user_id
     RETURNING
         id INTO deleted_comment_id;
     -- Update post's comment count
@@ -485,7 +512,6 @@ END IF;
 END;
 $$
 LANGUAGE plpgsql;
-
 
 CREATE OR REPLACE FUNCTION message_friend (p_source_user_id integer, p_target_user_id integer, p_message_text text)
     RETURNS TABLE (
@@ -540,7 +566,6 @@ END;
 $$
 LANGUAGE plpgsql;
 
-
 CREATE OR REPLACE FUNCTION delete_message_friend (p_message_id integer, p_user_id integer)
     RETURNS TABLE (
         message_id int
@@ -551,14 +576,18 @@ DECLARE
 BEGIN
     -- Check if the message exists
     IF NOT EXISTS (
-        SELECT 1
-        FROM user_message
-        WHERE id = p_message_id
-    ) THEN RAISE EXCEPTION 'The message does not exist.';
-END IF;   
+        SELECT
+            1
+        FROM
+            user_message
+        WHERE
+            id = p_message_id) THEN
+    RAISE EXCEPTION 'The message does not exist.';
+END IF;
     -- Delete the message
     DELETE FROM user_message
-    WHERE id = p_message_id AND source_user_id = p_user_id
+    WHERE id = p_message_id
+        AND source_user_id = p_user_id
     RETURNING
         id INTO deleted_message_id;
     -- Perform any additional actions or notifications if needed
@@ -568,7 +597,6 @@ END IF;
 END;
 $$
 LANGUAGE plpgsql;
-
 
 CREATE OR REPLACE FUNCTION create_user_group (p_created_by_user_id integer, p_title varchar(50), p_summary text)
     RETURNS TABLE (
@@ -604,7 +632,6 @@ END;
 $$
 LANGUAGE plpgsql;
 
-
 CREATE OR REPLACE FUNCTION delete_user_group (p_group_id integer, p_user_id integer)
     RETURNS TABLE (
         group_id int
@@ -634,7 +661,8 @@ END IF;
     RAISE EXCEPTION 'User does not exist.';
 END IF;
     DELETE FROM user_group
-    WHERE id = group_id AND created_by_user_id = p_user_id
+    WHERE id = group_id
+        AND created_by_user_id = p_user_id
     RETURNING
         id INTO deleted_group_id;
     -- Perform any additional actions or notifications if needed
@@ -644,7 +672,6 @@ END IF;
 END;
 $$
 LANGUAGE plpgsql;
-
 
 CREATE OR REPLACE FUNCTION message_in_group (p_user_id integer, p_group_id integer, p_message_text text)
     RETURNS TABLE (
@@ -698,7 +725,6 @@ END;
 $$
 LANGUAGE plpgsql;
 
-
 CREATE OR REPLACE FUNCTION delete_message_in_group (p_message_id integer, p_group_id integer, p_user_id integer)
     RETURNS TABLE (
         message_id int
@@ -739,7 +765,9 @@ END IF;
     RAISE EXCEPTION 'User is not a member of the group. Cannot delete a message.';
 END IF;
     DELETE FROM group_message
-    WHERE id = p_message_id AND group_id = p_group_id AND user_id = p_user_id
+    WHERE id = p_message_id
+        AND group_id = p_group_id
+        AND user_id = p_user_id
     RETURNING
         id INTO deleted_message_id;
     -- Perform any additional actions or notifications if needed
@@ -749,7 +777,6 @@ END IF;
 END;
 $$
 LANGUAGE plpgsql;
-
 
 CREATE OR REPLACE FUNCTION view_group_messages (p_user_id integer, p_group_id integer)
     RETURNS TABLE (
@@ -955,7 +982,8 @@ END IF;
 END IF;
     -- Delete the group member
     DELETE FROM group_member
-    WHERE group_id = p_group_id AND user_id = member_id
+    WHERE group_id = p_group_id
+        AND user_id = member_id
     RETURNING
         user_id INTO deleted_member_id;
     -- Perform any additional actions or notifications if needed
@@ -966,7 +994,6 @@ END LOOP;
 END;
 $$
 LANGUAGE plpgsql;
-
 
 CREATE OR REPLACE FUNCTION view_user_posts (p_user_id integer)
     RETURNS TABLE (
@@ -1183,7 +1210,6 @@ END;
 $$
 LANGUAGE plpgsql;
 
-
 CREATE OR REPLACE FUNCTION view_post_feed (p_user_id integer)
     RETURNS TABLE (
         feed_post_id int,
@@ -1209,7 +1235,7 @@ END IF;
     RETURN QUERY
     SELECT
         p.id AS feed_post_id,
-        p.user_id as creator_id,
+        p.user_id AS creator_id,
         p.message_text,
         p.created_at::timestamp, -- Ensure the correct casting to timestamp
         COALESCE(plike.like_count, 0)::bigint AS like_count,
@@ -1233,19 +1259,21 @@ END IF;
         GROUP BY
             post_id) pcomment ON p.id = pcomment.post_id
 WHERE
-    p.user_id IN 
-                (
-                    SELECT source_user_id
-                    FROM follow_request
-                    WHERE p_user_id = target_user_id and request_status='ACCEPTED'
-                )
-                OR 
-    p.user_id IN 
-                (
-                    SELECT target_user_id
-                    FROM follow_request
-                    WHERE p_user_id = source_user_id 
-                )
+    p.user_id IN (
+        SELECT
+            source_user_id
+        FROM
+            follow_request
+        WHERE
+            p_user_id = target_user_id
+            AND request_status = 'ACCEPTED')
+    OR p.user_id IN (
+        SELECT
+            target_user_id
+        FROM
+            follow_request
+        WHERE
+            p_user_id = source_user_id)
 ORDER BY
     p.created_at DESC;
 END;
