@@ -349,12 +349,12 @@ END IF;
     RETURNING
         id INTO new_post_id;
     -- Update user's post count
-    UPDATE
-        user_account
-    SET
-        post_count = post_count + 1
-    WHERE
-        id = p_user_id;
+    -- UPDATE
+    --     user_account
+    -- SET
+    --     post_count = post_count + 1
+    -- WHERE
+    --     id = p_user_id;
     -- Perform any additional actions or notifications if needed
     RETURN QUERY
     SELECT
@@ -483,12 +483,12 @@ END IF;
     RETURNING
         id INTO deleted_post_id;
     -- Update user's post count
-    UPDATE
-        user_account
-    SET
-        post_count = post_count - 1
-    WHERE
-        id = p_user_id;
+    -- UPDATE
+    --     user_account
+    -- SET
+    --     post_count = post_count - 1
+    -- WHERE
+    --     id = p_user_id;
     -- Perform any additional actions or notifications if needed
     RETURN QUERY
     SELECT

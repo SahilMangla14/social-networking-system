@@ -31,9 +31,14 @@ def seed_data():
     execute_sql_script("seed.sql")
 
 
+def load_triggers():
+    execute_sql_script("triggers.sql")
+
+
 if __name__ == "__main__":
     # reset_db()
     create_tables()
     load_procedures()
+    load_triggers()
     # seed_user_data.seed_data()
     # seed_data()
