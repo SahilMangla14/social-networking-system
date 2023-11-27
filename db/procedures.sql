@@ -26,7 +26,7 @@ $$
 LANGUAGE plpgsql;
 
 
-CREATE OR REPLACE FUNCTION delete_user (p_email text)
+CREATE OR REPLACE FUNCTION delete_user (p_id integer)
     RETURNS int
     AS $$
 DECLARE
@@ -39,12 +39,12 @@ BEGIN
         FROM
             user_account
         WHERE
-            email = p_email) THEN
-    RAISE EXCEPTION 'User with the provided email does not exist.';
+            id = p_id) THEN
+    RAISE EXCEPTION 'User with the provided id does not exist.';
 END IF;
     -- Delete the user from the user_account table
     DELETE FROM user_account
-    WHERE email = p_email
+    WHERE id = p_id
     RETURNING id INTO v_user_id;
     
     RETURN v_user_id;
@@ -233,7 +233,7 @@ $$
 LANGUAGE plpgsql;
 
 
-CREATE OR REPLACE FUNCTION delete_post (p_post_id integer)
+CREATE OR REPLACE FUNCTION delete_post (p_post_id integer, p_user_id integer)
     RETURNS TABLE (
         post_id int
     )
@@ -248,12 +248,12 @@ BEGIN
         FROM
             post
         WHERE
-            id = p_post_id) THEN
+            id = p_post_id AND user_id = p_user_id) THEN
     RAISE EXCEPTION 'The post which you are trying to delete does not exist.';
 END IF;
     -- Delete the post
     DELETE FROM post
-    WHERE id = p_post_id
+    WHERE user_id = p_user_id AND id = p_post_id
     RETURNING
         id INTO deleted_post_id;
     -- Update user's post count
@@ -262,7 +262,7 @@ END IF;
     SET
         post_count = post_count - 1
     WHERE
-        id = post_id;
+        id = p_user_id;
     -- Perform any additional actions or notifications if needed
     RETURN QUERY
     SELECT
@@ -329,7 +329,7 @@ $$
 LANGUAGE plpgsql;
 
 
-CREATE OR REPLACE FUNCTION unlike_post (p_like_id integer)
+CREATE OR REPLACE FUNCTION unlike_post (p_post_id integer, p_user_id integer)
     RETURNS TABLE (
         like_id int
     )
@@ -357,7 +357,7 @@ END IF;
             id = p_post_id) THEN
     RAISE EXCEPTION 'Post does not exist.';
 END IF;
-    -- Check if the user has not yet liked the post
+    -- Check if the user has not liked the post
     IF NOT EXISTS (
         SELECT
             1
@@ -370,7 +370,7 @@ END IF;
 END IF;
     -- Insert new post like
     DELETE FROM post_like
-    WHERE id = p_like_id
+    WHERE user_id = p_user_id AND post_id = p_post_id
     RETURNING id into deleted_like_id;
     -- Update post's like count
     -- UPDATE post
@@ -431,7 +431,7 @@ $$
 LANGUAGE plpgsql;
 
 
-CREATE OR REPLACE FUNCTION delete_comment_on_post (p_comment_id integer)
+CREATE OR REPLACE FUNCTION delete_comment_on_post (p_comment_id integer, p_post_id integer, p_user_id integer)
     RETURNS TABLE (
         comment_id int
     )
@@ -439,6 +439,26 @@ CREATE OR REPLACE FUNCTION delete_comment_on_post (p_comment_id integer)
 DECLARE
     deleted_comment_id int;
 BEGIN
+    -- Check if the user exists
+    IF NOT EXISTS (
+        SELECT
+            1
+        FROM
+            user_account
+        WHERE
+            id = p_user_id) THEN
+    RAISE EXCEPTION 'User does not exist.';
+END IF;
+    -- Check if the post exists
+    IF NOT EXISTS (
+        SELECT
+            1
+        FROM
+            post
+        WHERE
+            id = p_post_id) THEN
+    RAISE EXCEPTION 'Post does not exist.';
+END IF;
     -- Check if the comment exists
     IF NOT EXISTS (
         SELECT
@@ -447,13 +467,13 @@ BEGIN
             post_comment
         WHERE
             id = p_comment_id) THEN
-    RAISE EXCEPTION 'The comment you are trying to delete does not exist.';
+    RAISE EXCEPTION 'Comment does not exist.';
 END IF;
     -- Delete the comment
     DELETE FROM post_comment
-    WHERE id = p_comment_id
+    WHERE id = p_comment_id AND post_id = p_post_id AND author_user_id = p_user_id
     RETURNING
-        id INTO delete_comment_id;
+        id INTO deleted_comment_id;
     -- Update post's comment count
     -- UPDATE post
     -- SET comment_count = comment_count + 1
@@ -461,7 +481,7 @@ END IF;
     -- Perform any additional actions or notifications if needed
     RETURN QUERY
     SELECT
-        delete_comment_id;
+        deleted_comment_id;
 END;
 $$
 LANGUAGE plpgsql;
@@ -520,6 +540,36 @@ END;
 $$
 LANGUAGE plpgsql;
 
+
+CREATE OR REPLACE FUNCTION delete_message_friend (p_message_id integer, p_user_id integer)
+    RETURNS TABLE (
+        message_id int
+    )
+    AS $$
+DECLARE
+    deleted_message_id int;
+BEGIN
+    -- Check if the message exists
+    IF NOT EXISTS (
+        SELECT 1
+        FROM user_message
+        WHERE id = p_message_id
+    ) THEN RAISE EXCEPTION 'The message does not exist.';
+END IF;   
+    -- Delete the message
+    DELETE FROM user_message
+    WHERE id = p_message_id AND source_user_id = p_user_id
+    RETURNING
+        id INTO deleted_message_id;
+    -- Perform any additional actions or notifications if needed
+    RETURN QUERY
+    SELECT
+        deleted_message_id;
+END;
+$$
+LANGUAGE plpgsql;
+
+
 CREATE OR REPLACE FUNCTION create_user_group (p_created_by_user_id integer, p_title varchar(50), p_summary text)
     RETURNS TABLE (
         group_id int
@@ -553,6 +603,48 @@ END IF;
 END;
 $$
 LANGUAGE plpgsql;
+
+
+CREATE OR REPLACE FUNCTION delete_user_group (p_group_id integer, p_user_id integer)
+    RETURNS TABLE (
+        group_id int
+    )
+    AS $$
+DECLARE
+    deleted_group_id int;
+BEGIN
+    -- Check if the group exists
+    IF NOT EXISTS (
+        SELECT
+            1
+        FROM
+            user_group
+        WHERE
+            id = p_group_id) THEN
+    RAISE EXCEPTION 'Group does not exist.';
+END IF;
+    -- Check if the creating user exists
+    IF NOT EXISTS (
+        SELECT
+            1
+        FROM
+            user_account
+        WHERE
+            id = p_user_id) THEN
+    RAISE EXCEPTION 'User does not exist.';
+END IF;
+    DELETE FROM user_group
+    WHERE id = group_id AND created_by_user_id = p_user_id
+    RETURNING
+        id INTO deleted_group_id;
+    -- Perform any additional actions or notifications if needed
+    RETURN QUERY
+    SELECT
+        deleted_group_id;
+END;
+$$
+LANGUAGE plpgsql;
+
 
 CREATE OR REPLACE FUNCTION message_in_group (p_user_id integer, p_group_id integer, p_message_text text)
     RETURNS TABLE (
@@ -605,6 +697,59 @@ END IF;
 END;
 $$
 LANGUAGE plpgsql;
+
+
+CREATE OR REPLACE FUNCTION delete_message_in_group (p_message_id integer, p_group_id integer, p_user_id integer)
+    RETURNS TABLE (
+        message_id int
+    )
+    AS $$
+DECLARE
+    deleted_message_id int;
+BEGIN
+    -- Check if the user exists
+    IF NOT EXISTS (
+        SELECT
+            1
+        FROM
+            user_account
+        WHERE
+            id = p_user_id) THEN
+    RAISE EXCEPTION 'User does not exist.';
+END IF;
+    -- Check if the group exists
+    IF NOT EXISTS (
+        SELECT
+            1
+        FROM
+            user_group
+        WHERE
+            id = p_group_id) THEN
+    RAISE EXCEPTION 'Group does not exist.';
+END IF;
+    -- Check if the user is a member of the group
+    IF NOT EXISTS (
+        SELECT
+            1
+        FROM
+            group_member
+        WHERE
+            group_id = p_group_id
+            AND user_id = p_user_id) THEN
+    RAISE EXCEPTION 'User is not a member of the group. Cannot delete a message.';
+END IF;
+    DELETE FROM group_message
+    WHERE id = p_message_id AND group_id = p_group_id AND user_id = p_user_id
+    RETURNING
+        id INTO deleted_message_id;
+    -- Perform any additional actions or notifications if needed
+    RETURN QUERY
+    SELECT
+        deleted_message_id;
+END;
+$$
+LANGUAGE plpgsql;
+
 
 CREATE OR REPLACE FUNCTION view_group_messages (p_user_id integer, p_group_id integer)
     RETURNS TABLE (
@@ -743,6 +888,85 @@ END LOOP;
 END;
 $$
 LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION remove_members_from_group (p_member_ids integer[], p_group_id integer, p_creator_user_id integer)
+    RETURNS TABLE (
+        member_id int
+    )
+    AS $$
+DECLARE
+    deleted_member_id int;
+BEGIN
+    -- Check if the creator user exists
+    IF NOT EXISTS (
+        SELECT
+            1
+        FROM
+            user_account
+        WHERE
+            id = p_creator_user_id) THEN
+    RAISE EXCEPTION 'Creator user does not exist.';
+END IF;
+    -- Check if the group exists
+    IF NOT EXISTS (
+        SELECT
+            1
+        FROM
+            user_group
+        WHERE
+            id = p_group_id) THEN
+    RAISE EXCEPTION 'Group does not exist.';
+END IF;
+    -- Check only members of group can add other members
+    IF NOT EXISTS (
+        SELECT
+            1
+        FROM
+            group_member
+        WHERE
+            group_id = p_group_id
+            AND user_id = p_creator_user_id) THEN
+    RAISE EXCEPTION 'Only members of group can delete other members';
+END IF;
+    -- Loop through the array of member IDs
+    FOR member_id IN
+    SELECT
+        unnest(p_member_ids) AS id LOOP
+            -- Check if the member user exists
+            IF NOT EXISTS (
+                SELECT
+                    1
+                FROM
+                    user_account
+                WHERE
+                    id = member_id) THEN
+            RAISE EXCEPTION 'User with ID % does not exist.', member_id;
+        END IF;
+    -- Check if the member is not in the group
+    IF NOT EXISTS (
+        SELECT
+            1
+        FROM
+            group_member
+        WHERE
+            group_id = p_group_id
+            AND user_id = member_id) THEN
+    RAISE EXCEPTION 'User with ID % is not a member of the group.', member_id;
+END IF;
+    -- Delete the group member
+    DELETE FROM group_member
+    WHERE group_id = p_group_id AND user_id = member_id
+    RETURNING
+        user_id INTO deleted_member_id;
+    -- Perform any additional actions or notifications if needed
+    RETURN QUERY
+    SELECT
+        deleted_member_id;
+END LOOP;
+END;
+$$
+LANGUAGE plpgsql;
+
 
 CREATE OR REPLACE FUNCTION view_user_posts (p_user_id integer)
     RETURNS TABLE (
@@ -960,7 +1184,6 @@ $$
 LANGUAGE plpgsql;
 
 
-DROP FUNCTION  view_post_feed (p_user_id integer);
 CREATE OR REPLACE FUNCTION view_post_feed (p_user_id integer)
     RETURNS TABLE (
         feed_post_id int,
