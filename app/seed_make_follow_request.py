@@ -53,7 +53,7 @@ def make_follow_request(source_user_id,target_user_id):
         with get_db() as db:
             db.callproc("make_follow_request", [source_user_id, target_user_id])
             request_id = db.fetchone()[0]
-            print(request_id)
+            # print(request_id)
     except HTTPException as e:
         raise e  # Rethrow HTTPException with status code and details
     except Exception as e:
@@ -67,6 +67,3 @@ def seed_data():
     for i in range(len(make_follow_request_source_id)):
         make_follow_request(make_follow_request_source_id[i],make_follow_request_target_id[i])
     print("make follow request done...")       
-
-
-
