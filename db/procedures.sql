@@ -26,8 +26,8 @@ $$
 LANGUAGE plpgsql;
 
 
-CREATE OR REPLACE FUNCTION delete_user (p_id integer)
-    RETURNS int
+CREATE OR REPLACE FUNCTION delete_user (p_email text)
+    RETURNS v_user_id int
     AS $$
 DECLARE
     v_user_id int;
@@ -437,7 +437,7 @@ CREATE OR REPLACE FUNCTION delete_comment_on_post (p_comment_id integer, p_post_
     )
     AS $$
 DECLARE
-    deleted_comment_id int;
+deleted_comment_id int;
 BEGIN
     -- Check if the user exists
     IF NOT EXISTS (

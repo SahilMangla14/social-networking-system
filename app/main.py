@@ -486,3 +486,153 @@ def view_post_feed(user_id: int = Depends(get_current_user_id)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error calling stored procedure view_post_feed: {e}",
         )
+    
+
+## =========delete routes===========
+
+@app.delete("/delete-user", response_model=dict, status_code=status.HTTP_200_OK)
+def delete_user(user_id: int = Depends(get_current_user_id)):
+    try:
+        with get_db() as db:
+            db.callproc("delete_user", [user_id])
+            results = db.fetchall()    
+            deleted_user = {"deleted_user_id": results}
+            return deleted_user
+
+    except HTTPException as e:
+        raise e  # Rethrow HTTPException with status code and details
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error calling stored procedure delete_user: {e}",
+        )
+
+
+@app.delete("/delete-post/{post_id}", response_model=dict, status_code=status.HTTP_200_OK)
+def delete_post(post_id: int, user_id: int = Depends(get_current_user_id)):
+    try:
+        with get_db() as db:
+            db.callproc("delete_post", [post_id, user_id])
+            results = db.fetchall()
+            deleted_post_id = {"deleted_post_id": results}    
+            return deleted_post_id
+
+    except HTTPException as e:
+        raise e  # Rethrow HTTPException with status code and details
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error calling stored procedure delete_post: {e}",
+        )
+    
+
+    # unlike_post
+@app.delete("/unlike-post/{post_id}", response_model=dict, status_code=status.HTTP_200_OK)
+def unlike_post(post_id: int, user_id: int = Depends(get_current_user_id)):
+    try:
+        with get_db() as db:
+            db.callproc("unlike_post", [post_id, user_id])
+            results = db.fetchall()
+            unliked_id = {"unliked_id": results}    
+            return unliked_id
+
+    except HTTPException as e:
+        raise e  # Rethrow HTTPException with status code and details
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error calling stored procedure unlike-post: {e}",
+        )
+
+
+# delete_comment_on_post
+@app.delete("/delete-comment-on-post/{post_id}/{comment_id}", response_model=dict, status_code=status.HTTP_200_OK)
+def delete_comment_on_post(comment_id:int, post_id: int, user_id: int = Depends(get_current_user_id)):
+    try:
+        with get_db() as db:
+            db.callproc("delete_comment_on_post", [comment_id, post_id, user_id])
+            results = db.fetchall()
+            deleted_comment_id = {"deleted_comment_id": results}    
+            return deleted_comment_id
+
+    except HTTPException as e:
+        raise e  # Rethrow HTTPException with status code and details
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error calling stored procedure delete_comment_on_post: {e}",
+        )
+
+@app.delete("/delete-message-friend/{message_id}", response_model=dict, status_code=status.HTTP_200_OK)
+def delete_message_friend(message_id:int, user_id: int = Depends(get_current_user_id)):
+    try:
+        with get_db() as db:
+            db.callproc("delete_message_friend", [message_id, user_id])
+            results = db.fetchall()
+            deleted_message_id = {"deleted_message_id": results}    
+            return deleted_message_id
+
+    except HTTPException as e:
+        raise e  # Rethrow HTTPException with status code and details
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error calling stored procedure delete_message_friend: {e}",
+        ) 
+
+@app.delete("/delete-user-group/{group_id}", response_model=dict, status_code=status.HTTP_200_OK)
+def delete_user_group(group_id:int, user_id: int = Depends(get_current_user_id)):
+    try:
+        with get_db() as db:
+            db.callproc("delete_user_group", [group_id, user_id])
+            results = db.fetchall()
+            deleted_group_id = {"deleted_group_id": results}    
+            return deleted_group_id
+
+    except HTTPException as e:
+        raise e  # Rethrow HTTPException with status code and details
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error calling stored procedure delete_user_group: {e}",
+        ) 
+
+@app.delete("/delete-message-in-group/{group_id}/{message_id}", response_model=dict, status_code=status.HTTP_200_OK)
+def delete_message_in_group(group_id:int, message_id:int, user_id: int = Depends(get_current_user_id)):
+    try:
+        with get_db() as db:
+            db.callproc("delete_message_in_group", [group_id, message_id ,user_id])
+            results = db.fetchall()
+            deleted_message_id = {"deleted_message_id": results}    
+            return deleted_message_id
+
+    except HTTPException as e:
+        raise e  # Rethrow HTTPException with status code and details
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error calling stored procedure delete_message_in_group: {e}",
+        ) 
+
+#remove members from a group
+@app.delete("/remove-members-from-group", response_model=list, status_code=status.HTTP_200_OK)
+def remove_members_from_group(group_id: int, members_id: list[int], creator_id=Depends(get_current_user_id)):
+    try:
+        with get_db() as db:
+            db.callproc("remove_members_from_group", [group_id , members_id, creator_id])
+            results = db.fetchall()
+            deleted_members = []    
+            for result in results:
+                deleted_members.append({"member_id": result[0]})
+            return deleted_members
+
+    except HTTPException as e:
+        raise e  # Rethrow HTTPException with status code and details
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error calling stored procedure remove_members_from_group: {e}",
+        ) 
+    
+
+
